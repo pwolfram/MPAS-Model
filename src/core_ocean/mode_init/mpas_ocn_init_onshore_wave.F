@@ -80,12 +80,13 @@ contains
       real (kind=RKIND) :: yMin, yMax, dcEdgeMin
       real (kind=RKIND) :: yMinGlobal, yMaxGlobal, dcEdgeMinGlobal
       real (kind=RKIND) :: plugWidth
-      real (kind=RKIND) :: slopeCenter, slopeWidth
+      real (kind=RKIND) :: slopeCenter, slopeWidth, depCenter, depWidth
 
       type (block_type), pointer :: block_ptr
 
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: statePool
+      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: verticalMeshPool
       type (mpas_pool_type), pointer :: tracersPool
 
@@ -98,7 +99,8 @@ contains
       ! Define arrays
       integer, dimension(:), pointer :: maxLevelCell
       real (kind=RKIND), dimension(:), pointer :: yCell, refBottomDepth, bottomDepth, vertCoordMovementWeights, dcEdge
-      real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
+      real (kind=RKIND), dimension(:), pointer :: ssh
+      real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness, zMid
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, debugTracers
 
       ! Define configs
@@ -109,7 +111,12 @@ contains
                                     config_onshore_wave_slope_center_frac, config_onshore_wave_slope_width_frac, &
                                     config_onshore_wave_bottom_depth, config_onshore_wave_ridge_depth, &
                                     config_onshore_wave_plug_temperature, config_onshore_wave_domain_temperature, &
-                                    config_onshore_wave_salinity, config_onshore_wave_isopycnal_min_thickness
+                                    config_onshore_wave_salinity, config_onshore_wave_isopycnal_min_thickness, &
+                                    config_onshore_wave_ridge_depressionwave_center_frac, &
+                                    config_onshore_wave_ridge_depressionwave_width_frac, &
+                                    config_onshore_wave_ridge_depressionwave_center_dist, &
+                                    config_onshore_wave_ridge_depressionwave_width_dist, &
+                                    config_onshore_wave_ridge_depressionwave_amplitude
 
 
      real (kind=RKIND), dimension(:), pointer :: interfaceLocations
@@ -137,6 +144,11 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_salinity', config_onshore_wave_salinity)
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_layer_type', config_onshore_wave_layer_type)
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_isopycnal_min_thickness', config_onshore_wave_isopycnal_min_thickness)
+      call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_center_frac', config_onshore_wave_ridge_depressionwave_center_frac)
+      call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_width_frac', config_onshore_wave_ridge_depressionwave_width_frac)
+      call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_center_dist', config_onshore_wave_ridge_depressionwave_center_dist)
+      call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_width_dist', config_onshore_wave_ridge_depressionwave_width_dist)
+      call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_amplitude', config_onshore_wave_ridge_depressionwave_amplitude)
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
       call mpas_pool_get_dimension(meshPool, 'nVertLevelsP1', nVertLevelsP1)
@@ -177,16 +189,21 @@ contains
          plugWidth = config_onshore_wave_plug_width_dist
          slopeCenter = yMinGlobal + config_onshore_wave_slope_center_dist
          slopeWidth = config_onshore_wave_slope_width_dist
+         depCenter = config_onshore_wave_ridge_depressionwave_center_dist
+         depWidth = config_onshore_wave_ridge_depressionwave_width_dist
       else
          plugWidth = (yMaxGlobal - yMinGlobal) * config_onshore_wave_plug_width_frac
          slopeCenter = yMinGlobal + (yMaxGlobal - yMinGlobal) * config_onshore_wave_slope_center_frac
          slopeWidth = (yMaxGlobal - yMinGlobal) * config_onshore_wave_slope_width_frac
+         depCenter = yMinGlobal + (yMaxGlobal - yMinGlobal) * config_onshore_wave_ridge_depressionwave_center_frac
+         depWidth = (yMaxGlobal - yMinGlobal) * config_onshore_wave_ridge_depressionwave_width_frac
       end if
 
       block_ptr => domain % blocklist
       do while(associated(block_ptr))
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool) 
         call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
@@ -205,6 +222,8 @@ contains
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
         call mpas_pool_get_array(tracersPool, 'debugTracers', debugTracers, 1)
         call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
+        call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
+        call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
 
         call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
 
@@ -214,6 +233,12 @@ contains
         ! Set refBottomDepth, bottomDepth, and maxLevelCell
         do k = 1, nVertLevels
            refBottomDepth(k) = config_onshore_wave_bottom_depth * interfaceLocations(k+1)
+        end do
+
+        ! Set ssh
+        do iCell = 1, nCellsSolve
+          ssh(iCell) = 0.5_RKIND*config_onshore_wave_ridge_depressionwave_amplitude &
+                       * (1.0_RKIND+tanh((yCell(iCell) - depCenter) / depWidth))
         end do
 
         do iCell = 1, nCellsSolve
@@ -258,10 +283,15 @@ contains
 
            ! Set layerThickness and restingThickness
            if ( trim(config_onshore_wave_layer_type) == 'z-level' ) then
-              do k = 1, maxLevelCell(iCell)
-                 layerThickness(k, iCell) = config_onshore_wave_bottom_depth * (interfaceLocations(k+1) - interfaceLocations(k))
-                 restingThickness(k, iCell) = layerThickness(k, iCell)
-              end do
+             call ocn_compute_layerThickness_zMid_from_bottomDepth(layerThickness(:,iCell), zMid(:,iCell), &
+               refBottomDepth, bottomDepth(iCell), maxLevelCell(iCell), nVertLevels, iErr, &
+               restingThickness=restingThickness(:,iCell), &
+               ssh=ssh(iCell))
+              ! also computes zMid
+              !do k = 1, maxLevelCell(iCell)
+              !   layerThickness(k, iCell) = (ssh(iCell) + config_onshore_wave_bottom_depth) * (interfaceLocations(k+1) - interfaceLocations(k))
+              !   restingThickness(k, iCell) = layerThickness(k, iCell)
+              !end do
            else if ( trim(config_onshore_wave_layer_type) == 'sigma' ) then
               do k = 1, nVertLevels
                  layerThickness(k, iCell) = bottomDepth(iCell) / nVertLevels
