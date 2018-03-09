@@ -12,6 +12,7 @@
 		<option name="config_vert_levels">-1</option>
 		<option name="config_ocean_run_mode">'init'</option>
 		<option name="config_onshore_wave_use_distances">.true.</option>
+		<option name="config_use_debugTracers">.true.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">

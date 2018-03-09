@@ -15,6 +15,7 @@
 		<option name="config_implicit_bottom_drag_coeff">1.0e-2</option>
 		<option name="config_use_mom_del2">.true.</option>
 		<option name="config_mom_del2">1.0e3</option>
+		<option name="config_use_debugTracers">.true.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
@@ -36,6 +37,7 @@
 				<member type="var" name="ssh"/>
 				<member type="var" name="normalVelocity"/>
 				<member type="var" name="xtime"/>
+				<member type="var" name="zMid"/>
 			</add_contents>
 		</stream>
 	</streams>

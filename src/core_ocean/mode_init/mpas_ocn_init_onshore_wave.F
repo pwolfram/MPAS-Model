@@ -275,9 +275,20 @@ contains
                        activeTracers(index_temperature, k, iCell) = config_onshore_wave_domain_temperature
                     end if
                  end do
+              ! looks like there may be some over iteration over iCells here...
               else if ( trim(config_onshore_wave_layer_type) == 'isopycnal' ) then
                  activeTracers(index_temperature, 1, :) = config_onshore_wave_domain_temperature
                  activeTracers(index_temperature, 2:nVertLevels, :) = config_onshore_wave_plug_temperature
+              end if
+              ! Set debug tracer to match plug onshore
+              if ( associated(debugTracers) ) then
+                do k = 1, maxLevelCell(iCell)
+                  if(yCell(iCell) < (yMinGlobal + plugWidth)) then
+                    debugTracers(index_tracer1, k, iCell) = 1.0_RKIND
+                  else
+                    debugTracers(index_tracer1, k, iCell) = 0.0_RKIND
+                  end if
+                end do
               end if
            end if
 
@@ -313,13 +324,6 @@ contains
            ! Set salinity
            if ( associated(activeTracers) ) then
               activeTracers(index_salinity, :, iCell) = config_onshore_wave_salinity
-           end if
-
-           ! Set debug tracer
-           if ( associated(debugTracers) ) then
-              do k = 1, nVertLevels
-                debugTracers(index_tracer1, k, iCell) = 1.0_RKIND
-              end do
            end if
 
         end do
