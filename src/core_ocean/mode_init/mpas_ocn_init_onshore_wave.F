@@ -237,7 +237,7 @@ contains
 
         ! Set ssh
         do iCell = 1, nCellsSolve
-          ssh(iCell) = 0.5_RKIND*config_onshore_wave_ridge_depressionwave_amplitude &
+          ssh(iCell) = -0.5_RKIND*config_onshore_wave_ridge_depressionwave_amplitude &
                        * (1.0_RKIND+tanh((yCell(iCell) - depCenter) / depWidth))
         end do
 
