@@ -36,6 +36,7 @@ module ocn_time_integration_rk4
    use ocn_equation_of_state
    use ocn_vmix
    use ocn_time_average_coupled
+   use ocn_wetting_drying
 
    use ocn_effective_density_in_land_ice
 
@@ -124,7 +125,8 @@ module ocn_time_integration_rk4
       logical, pointer :: config_use_standardGM
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
-      real (kind=RKIND), pointer :: config_mom_del4
+      logical, pointer :: config_use_wetting_drying, config_verify_not_dry
+      real (kind=RKIND), pointer :: config_mom_del4, config_drying_min_cell_height
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
       ! State indices
@@ -191,6 +193,9 @@ module ocn_time_integration_rk4
       call mpas_pool_get_config(domain % configs, 'config_use_standardGM', config_use_standardGM)
       call mpas_pool_get_config(domain % configs, 'config_use_cvmix_kpp', config_use_cvmix_kpp)
       call mpas_pool_get_config(domain % configs, 'config_land_ice_flux_mode', config_land_ice_flux_mode)
+      call mpas_pool_get_config(domain % configs, 'config_use_wetting_drying', config_use_wetting_drying)
+      call mpas_pool_get_config(domain % configs, 'config_verify_not_dry', config_verify_not_dry)
+      call mpas_pool_get_config(domain % configs, 'config_drying_min_cell_height', config_drying_min_cell_height)
 
       !
       ! Initialize time_levs(2) with state at current time
@@ -445,6 +450,12 @@ module ocn_time_integration_rk4
            call ocn_time_integrator_rk4_compute_vel_tends( block, dt, rk_substep_weights(rk_step), err )
 
            call ocn_time_integrator_rk4_compute_thick_tends( block, dt, rk_substep_weights(rk_step), err )
+
+           ! check to ensure that cells have not dried out
+           if (config_use_wetting_drying .and. config_verify_not_dry) then
+             call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
+           end if
+
            block => block % next
         end do
 

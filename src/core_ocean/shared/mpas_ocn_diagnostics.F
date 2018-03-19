@@ -59,7 +59,8 @@ module ocn_diagnostics
              ocn_reconstruct_gm_vectors, &
              ocn_diagnostics_init, &
              ocn_compute_kpp_input_fields, &
-             ocn_validate_state
+             ocn_validate_state, &
+             ocn_build_log_filename
 
    !--------------------------------------------------------------------
    !
