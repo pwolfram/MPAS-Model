@@ -109,6 +109,7 @@ contains
       integer :: iCell, k
       integer :: debugUnit
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur
+      real (kind=RKIND) :: minThickness
       character (len=StrKIND) :: debugFilename
 
       !-----------------------------------------------------------------
@@ -131,9 +132,11 @@ contains
       call mpas_log_write( 'Verifying that cells are not dry...')
 
       ! check to make sure that there is no layer that is too dry
+      minThickness = +1.0E34
       do iCell = 1, nCellsSolve
         do k = 1, maxLevelCell(iCell)
           !call mpas_log_write( 'Layer thickness = $r', realArgs=(/ layerThicknessCur(k, iCell)/))
+          minThickness = min(minThickness, layerThicknessCur(k, iCell))
           if ( layerThicknessCur(k, iCell) <  minHeight ) then
             ! report error if layerThickness constraint is violated
             if (err == 0) then
@@ -147,6 +150,8 @@ contains
           end if
         end do
       end do
+
+      call mpas_log_write('Minimum thickness is $r.', realArgs=(/minThickness/))
 
       if ( err > 0) then
         ! end the simulation if layerThickness constraint is violated
@@ -173,7 +178,7 @@ contains
 !>  This routine modifies velocity tendency to prevent cell drying.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_prevent_drying(block, dt, rkWeight, err) !{{{ 
+   subroutine ocn_prevent_drying(block, dt, rkWeight, err) !{{{
 
      !-----------------------------------------------------------------
      !
@@ -280,7 +285,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
 
-     ! get provisional values prior to updating tendency to prevent drying 
+     ! get provisional values prior to updating tendency to prevent drying
      ! (provisional values use estimated tendency)
 
 
