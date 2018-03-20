@@ -860,11 +860,15 @@
 		/>
 	</nml_record>
 	<nml_record name="wetting_drying" mode="forward">
-		<nml_option name="config_use_wetting_drying" type="logical" default_value=".true." units="unitless"
+		<nml_option name="config_use_wetting_drying" type="logical" default_value=".false." units="unitless"
 					description="If true, use wetting and drying algorithm to allow for dry cells to config_min_cell_height."
 					possible_values=".true. or .false."
 		/>
-		<nml_option name="config_drying_min_cell_height" type="real" default_value="1.0e-1" units="m"
+		<nml_option name="config_prevent_drying" type="logical" default_value=".true." units="unitless"
+					description="If true, prevent cells from drying past config_min_cell_height."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_drying_min_cell_height" type="real" default_value="1.0e-2" units="m"
 					description="Minimum allowable cell height under drying.  Cell to be kept wet to at least this thickness."
 					possible_values="any positive real, typically 1.0e-1"
 		/>
