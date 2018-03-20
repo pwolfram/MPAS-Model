@@ -230,7 +230,7 @@ contains
       character (len=StrKIND) :: configName
 
       err = 0
-      call mpas_log_write('Computing provisional variables...')
+      !call mpas_log_write('Computing provisional variables...')
 
      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
      call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
@@ -389,7 +389,7 @@ contains
       ! ------------------------------------------------------------------
       ! End: Accumulating various parametrizations of the transport velocity
       ! ------------------------------------------------------------------
-      call mpas_log_write('Done with provisional variabiles')
+      !call mpas_log_write('Done with provisional variabiles')
 
      ! ensure cells stay wet by selectively damping cells with a damping tendency to make sure tendency doesn't dry cells
      call ocn_wetting_drying_tend(meshPool, layerThicknessEdge, layerThicknessProvis, normalTransportVelocity, rkWeight, normalVelocityTend, err)
@@ -465,6 +465,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
 
       real (kind=RKIND), pointer :: config_drying_min_cell_height
+      real(kind=RKIND), parameter :: eps = 1.0e-12_RKIND
 
       err = 0
 
@@ -502,6 +503,8 @@ contains
               !call mpas_log_write('u = $r, sign=$i', realArgs=(/ normalVelocity(k,iEdge)/), intArgs=(/edgesSignOnCell(i,iCell)/))
               if ( normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
                 !call mpas_log_write('LIMIT FLUX1')
+                ! potential problem here, if we have large flux out of one face but small out of the other, small flux could get
+                ! lost due to truncation error
                 divOutFlux = divOutFlux - normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) &
                   * layerThicknessEdge(k, iEdge) * dvEdge(iEdge)  * invAreaCell
               end if
@@ -510,7 +513,7 @@ contains
           !call mpas_log_write('divOutFlux= $r, layerThickness = $r, dt= $r', realArgs=(/divOutFlux, layerThickness(k, iCell), dt/))
 
           ! if layer thickness is too small, limit divergence flux outwards with tendency
-          if ((layerThickness(k, iCell) - dt*divOutFlux) < config_drying_min_cell_height) then
+          if ((layerThickness(k, iCell) - dt*divOutFlux ) < config_drying_min_cell_height) then
             !call mpas_log_write('LIMIT FLUX')
             ! limit divOutFlux out of cell to keep it wet
             divOutFlux = (layerThickness(k, iCell) - config_drying_min_cell_height) / (dt*divOutFlux)
@@ -520,7 +523,7 @@ contains
               if (k <= maxLevelEdgeBot(iEdge)) then
                 if ( normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
                   ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
-                  tend(k, iEdge) = tend(k, iEdge) - (1-divOutFlux)/dt * normalVelocity(k, iEdge)
+                  tend(k, iEdge) = tend(k, iEdge) - (1.0_RKIND - divOutFlux)/dt * normalVelocity(k, iEdge)
                 end if
               end if
             end do
