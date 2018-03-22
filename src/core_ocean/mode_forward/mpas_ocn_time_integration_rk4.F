@@ -452,21 +452,6 @@ module ocn_time_integration_rk4
 
            call ocn_time_integrator_rk4_compute_thick_tends( block, dt, rk_substep_weights(rk_step), err )
 
-           ! check to ensure that cells have not dried out
-           if (config_use_wetting_drying) then
-
-             ! ensure existing layerThickness is valid
-             if (config_verify_not_dry) then
-               call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
-             end if
-
-             ! modify velocity tendency to prevent drying of cell 
-             if (config_prevent_drying) then
-               call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), err)
-             end if
-
-           end if
-
            block => block % next
         end do
 
@@ -522,6 +507,23 @@ module ocn_time_integration_rk4
         call mpas_timer_stop("RK4-update diagnostic variables")
         call mpas_threading_barrier()
 
+        ! check to ensure that cells have not dried out
+        if (config_use_wetting_drying) then
+             call mpas_timer_start("RK4-prevent drying")
+
+             ! compute wetting velocity to prevent drying of cell (sets up start of next iterate to not dry)
+             if (config_prevent_drying) then
+               block => domain % blocklist
+                 do while (associated(block))
+                   call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), err)
+                   block => block % next
+                 end do
+             end if
+
+             call mpas_timer_stop("RK4-prevent drying")
+             call mpas_threading_barrier()
+        end if
+
         ! Accumulate update.
         ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum so that we have
         !    y_{n+1} = y_n + sum ( b_j k_j )
@@ -538,6 +540,24 @@ module ocn_time_integration_rk4
 
         call mpas_timer_stop("RK4-RK4 accumulate update")
         call mpas_threading_barrier()
+
+        ! verify that cells are not dry
+        if (config_use_wetting_drying) then
+             call mpas_timer_start("RK4- check wet cells")
+
+             ! ensure existing layerThickness is valid
+             if (config_verify_not_dry) then
+               block => domain % blocklist
+                 do while (associated(block))
+                   call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
+                   block => block % next
+                 end do
+             end if
+
+             call mpas_timer_stop("RK4- check wet cells")
+             call mpas_threading_barrier()
+        end if
+
 
       end do
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

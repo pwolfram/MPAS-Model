@@ -868,9 +868,9 @@
 					description="If true, prevent cells from drying past config_min_cell_height."
 					possible_values=".true. or .false."
 		/>
-		<nml_option name="config_drying_min_cell_height" type="real" default_value="1.0e-10" units="m"
+		<nml_option name="config_drying_min_cell_height" type="real" default_value="1.0e-3" units="m"
 					description="Minimum allowable cell height under drying.  Cell to be kept wet to at least this thickness."
-					possible_values="any positive real, typically 1.0e-10"
+					possible_values="any positive real, typically 1.0e-3"
 		/>
 		<nml_option name="config_verify_not_dry" type="logical" default_value=".true." units="unitless"
 					description="If true, verify that cells are at least config_min_cell_height thick."
@@ -2258,6 +2258,10 @@
 		<var name="normalTransportVelocity" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
 			 description="horizontal velocity used to transport mass and tracers"
 			 packages="forwardMode;analysisMode"
+		/>
+		<var name="wettingVelocity" type="real" dimensions="nVertLevels nEdges Time" units="m^{2} s^{-1}"
+			 description="Velocity to prevent drying of cell."
+			 packages="forwardMode"
 		/>
 		<var name="vertAleTransportTop" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-1}"
 			 description="vertical transport through the layer interface at the top of the cell"

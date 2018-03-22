@@ -118,8 +118,6 @@ contains
       !
       !-----------------------------------------------------------------
 
-      err = 0
-
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
@@ -209,30 +207,14 @@ contains
      ! local variables
      !
      !-----------------------------------------------------------------
-     real (kind=RKIND), dimension(:,:), pointer :: tend_normalVelocity, layerThickness, layerThicknessEdge
 
 
-      integer, pointer :: nCells, nEdges
-      integer :: iCell, iEdge, k
+      type (mpas_pool_type), pointer :: tendPool, meshPool, statePool, diagnosticsPool
+      real (kind=RKIND), dimension(:, :), pointer :: layerThickness, layerThicknessEdge
+      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, wettingVelocity
 
-      type (mpas_pool_type), pointer :: tendPool, meshPool, statePool, scratchPool
-      type (mpas_pool_type), pointer :: diagnosticsPool, provisStatePool, forcingPool
-      type (mpas_pool_type), pointer :: tracersPool, tracersTendPool, provisTracersPool
-
-      real (kind=RKIND), dimension(:, :), pointer :: normalVelocityCur, normalVelocityProvis, normalVelocityTend
-      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, layerThicknessProvis, layerThicknessTend
-      real (kind=RKIND), dimension(:, :), pointer :: lowFreqDivergenceCur, lowFreqDivergenceProvis, lowFreqDivergenceTend
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, normalGMBolusVelocity
-
-      real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupCur, tracersGroupProvis, tracersGroupTend
-
-      integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop
-
-      logical, pointer :: config_prescribe_velocity, config_prescribe_thickness, config_use_standardGM
-      logical, pointer :: config_use_tracerGroup
-      type (mpas_pool_iterator_type) :: groupItr
-      character (len=StrKIND) :: modifiedGroupName
-      character (len=StrKIND) :: configName
+      integer, pointer :: nEdges
+      integer :: iEdge
 
       err = 0
       !call mpas_log_write('Computing provisional variables...')
@@ -244,176 +226,46 @@ contains
 
      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+     call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
      call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
-     call mpas_pool_get_array(tendPool, 'normalVelocity', tend_normalVelocity)
 
-      call mpas_pool_get_config(block % configs, 'config_prescribe_velocity', config_prescribe_velocity)
-      call mpas_pool_get_config(block % configs, 'config_prescribe_thickness', config_prescribe_thickness)
-      call mpas_pool_get_config(block % configs, 'config_use_standardGM', config_use_standardGM)
+     call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
 
-      call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
-      call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
-
-      call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-      call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-      call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-      call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
-      call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
-
-      call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-      call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
-
-      call mpas_pool_get_subpool(provisStatePool, 'tracers', provisTracersPool)
-
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-      call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-      call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceCur, 1)
-
-      call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
-      call mpas_pool_get_array(provisStatePool, 'layerThickness', layerThicknessProvis, 1)
-      call mpas_pool_get_array(provisStatePool, 'lowFreqDivergence', lowFreqDivergenceProvis, 1)
-
-      call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
-      call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
-      call mpas_pool_get_array(tendPool, 'lowFreqDivergence', lowFreqDivergenceTend)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-
-     ! get provisional values prior to updating tendency to prevent drying
-     ! (provisional values use estimated tendency)
-
-
-      call mpas_threading_barrier()
-
-      !$omp do schedule(runtime) private(k)
-      do iEdge = 1, nEdges
-         do k = 1, maxLevelEdgeTop(iEdge)
-            normalVelocityProvis(k, iEdge) = normalVelocityCur(k, iEdge) + rkWeight &
-                                           * normalVelocityTend(k, iEdge)
-         end do
-      end do
-      !$omp end do
-
-
-      !$omp do schedule(runtime) private(k)
-      do iCell = 1, nCells
-         do k = 1, maxLevelCell(iCell)
-            layerThicknessProvis(k, iCell) = layerThicknessCur(k, iCell) + rkWeight &
-                                           * layerThicknessTend(k, iCell)
-         end do
-      end do
-      !$omp end do
-
-      call mpas_pool_begin_iteration(tracersPool)
-      do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
-         if ( groupItr % memberType == MPAS_POOL_FIELD ) then
-            configName = 'config_use_' // trim(groupItr % memberName)
-            call mpas_pool_get_config(block % configs, configName, config_use_tracerGroup)
-
-            if ( config_use_tracerGroup ) then
-               call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
-               call mpas_pool_get_array(provisTracersPool, groupItr % memberName, tracersGroupProvis, 1)
-
-               modifiedGroupName = trim(groupItr % memberName) // 'Tend'
-               call mpas_pool_get_array(tracersTendPool, modifiedGroupName, tracersGroupTend)
-               if ( associated(tracersGroupProvis) .and. associated(tracersGroupCur) .and. associated(tracersGroupTend) ) then
-                  !$omp do schedule(runtime) private(k)
-                  do iCell = 1, nCells
-                     do k = 1, maxLevelCell(iCell)
-                        tracersGroupProvis(:, k, iCell) = ( layerThicknessCur(k, iCell) * tracersGroupCur(:, k, iCell)  &
-                                                 + rkWeight * tracersGroupTend(:, k, iCell) &
-                                                   ) / layerThicknessProvis(k, iCell)
-                     end do
-
-                  end do
-                  !$omp end do
-               end if
-            end if
-         end if
-      end do
-
-      if (associated(lowFreqDivergenceCur)) then
-         !$omp do schedule(runtime)
-         do iCell = 1, nCells
-            lowFreqDivergenceProvis(:, iCell) = lowFreqDivergenceCur(:, iCell) + rkWeight &
-                                              * lowFreqDivergenceTend(:, iCell)
-         end do
-         !$omp end do
-      end if
-
-      if (config_prescribe_velocity) then
-         !$omp do schedule(runtime)
-         do iEdge = 1, nEdges
-            normalVelocityProvis(:, iEdge) = normalVelocityCur(:, iEdge)
-         end do
-         !$omp end do
-      end if
-
-      if (config_prescribe_thickness) then
-         !$omp do schedule(runtime)
-         do iCell = 1, nCells
-            layerThicknessProvis(:, iCell) = layerThicknessCur(:, iCell)
-         end do
-         !$omp end do
-      end if
-      call mpas_threading_barrier()
-
-      call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 1)
-      call mpas_threading_barrier()
-
-      ! ------------------------------------------------------------------
-      ! Accumulating various parametrizations of the transport velocity
-      ! ------------------------------------------------------------------
-      !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
-         normalTransportVelocity(:, iEdge) = normalVelocityProvis(:, iEdge)
-      end do
-      !$omp end do
-      call mpas_threading_barrier()
-
-      ! Compute normalGMBolusVelocity, relativeSlope and RediDiffVertCoef if respective flags are turned on
-      if (config_use_standardGM) then
-         call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
-      end if
-      call mpas_threading_barrier()
-
-      if (config_use_standardGM) then
-         !$omp do schedule(runtime)
-         do iEdge = 1, nEdges
-            normalTransportVelocity(:, iEdge) = normalTransportVelocity(:, iEdge) + normalGMBolusVelocity(:,iEdge)
-         end do
-         !$omp end do
-      end if
-      call mpas_threading_barrier()
-      ! ------------------------------------------------------------------
-      ! End: Accumulating various parametrizations of the transport velocity
-      ! ------------------------------------------------------------------
-      !call mpas_log_write('Done with provisional variabiles')
+     !$omp do schedule(runtime)
+     do iEdge = 1, nEdges
+       wettingVelocity(:, iEdge) = 0.0_RKIND
+     end do
+     !$omp end do
+     call mpas_threading_barrier()
 
      ! ensure cells stay wet by selectively damping cells with a damping tendency to make sure tendency doesn't dry cells
-     call ocn_wetting_drying_tend(meshPool, layerThicknessEdge, layerThicknessProvis, normalTransportVelocity, rkWeight, normalVelocityTend, err)
+     call ocn_wetting_drying_wettingVelocity(meshPool, layerThicknessEdge, layerThickness, normalTransportVelocity, &
+                                             rkWeight, wettingVelocity, err)
+
+     ! prevent drying from happening with selective wettingVelocity
+     !$omp do schedule(runtime)
+     do iEdge = 1, nEdges
+       normalTransportVelocity(:, iEdge) = normalTransportVelocity(:, iEdge) + wettingVelocity(:, iEdge)
+     end do
+     !$omp end do
+     call mpas_threading_barrier()
 
    end subroutine ocn_prevent_drying !}}}
 
 !***********************************************************************
 !
-!  routine ocn_wetting_drying_tend
+!  routine ocn_wetting_drying_wettingVelocity
 !
-!> \brief   Computes tendency to prevent cell drying
+!> \brief   Computes velocity to prevent cell drying
 !> \author  Phillip J. Wolfram
 !> \date    03/19/2018
 !> \details
-!>  This routine adds edge-damping to prevent cells from drying.
+!>  This routine adds wetting velocity opposed to drying motion
+!>  to prevent cells from drying.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_wetting_drying_tend(meshPool, layerThicknessEdge, layerThickness, &
-       normalVelocity, dt, tend, err)!{{{
+   subroutine ocn_wetting_drying_wettingVelocity(meshPool, layerThicknessEdge, layerThickness, &
+       normalVelocity, dt, wettingVelocity, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -443,7 +295,7 @@ contains
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), intent(inout) :: &
-         tend          !< Input/Output: velocity tendency
+         wettingVelocity          !< Input/Output: velocity wettingVelocityency
 
       !-----------------------------------------------------------------
       !
@@ -488,13 +340,13 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
 
       ! Only need to compute over 0 and 1 halos
-      nCells = nCellsArray( 2 )
+      nCells = nCellsArray( 1 )
 
       call mpas_threading_barrier()
 
-      call mpas_log_write('IN WETTING AND DRYING TEND $i', intArgs=(/nCells/))
+      call mpas_log_write('IN WETTING AND DRYING $i', intArgs=(/nCells/))
 
-      ! need predicted transport velocity to limit tendency
+      ! need predicted transport velocity to limit drying flux
 
       !! !$omp do schedule(runtime) private(invAreaCell, i, iEdge, k)
       do iCell = 1, nCells
@@ -517,18 +369,18 @@ contains
           end do
           !call mpas_log_write('divOutFlux= $r, layerThickness = $r, dt= $r', realArgs=(/divOutFlux, layerThickness(k, iCell), dt/))
 
-          ! if layer thickness is too small, limit divergence flux outwards with tendency
+          ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
           if ((layerThickness(k, iCell) - dt*divOutFlux ) < config_drying_min_cell_height) then
             !call mpas_log_write('LIMIT FLUX')
             ! limit divOutFlux out of cell to keep it wet
-            divOutFlux = (layerThickness(k, iCell) - config_drying_min_cell_height) / (dt*divOutFlux)
+            divOutFlux = (layerThickness(k, iCell) - (config_drying_min_cell_height + eps)) / (dt*divOutFlux)
 
             do i = 1, nEdgesOnCell(iCell)
               iEdge = edgesOnCell(i, iCell)
               if (k <= maxLevelEdgeBot(iEdge)) then
                 if ( normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
                   ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
-                  tend(k, iEdge) = tend(k, iEdge) - (1.0_RKIND - divOutFlux)/dt * normalVelocity(k, iEdge)
+                  wettingVelocity(k, iEdge) =  - (1.0_RKIND - divOutFlux) * normalVelocity(k, iEdge)
                 end if
               end if
             end do
@@ -539,9 +391,9 @@ contains
       !! !$omp end do
 
       call mpas_threading_barrier()
-      call mpas_log_write('OUT OF WETTING AND DRYING TEND')
+      call mpas_log_write('OUT OF WETTING AND DRYING')
 
-   end subroutine ocn_wetting_drying_tend !}}}
+   end subroutine ocn_wetting_drying_wettingVelocity !}}}
 
 end module ocn_wetting_drying
 
