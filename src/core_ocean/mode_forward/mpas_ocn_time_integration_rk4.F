@@ -549,7 +549,7 @@ module ocn_time_integration_rk4
              if (config_verify_not_dry) then
                block => domain % blocklist
                  do while (associated(block))
-                   call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
+                   call ocn_wetting_drying_verify(block, config_drying_min_cell_height, dt, err)
                    block => block % next
                  end do
              end if
@@ -1123,6 +1123,7 @@ module ocn_time_integration_rk4
          do k = 1, maxLevelCell(iCell)
             layerThicknessProvis(k, iCell) = layerThicknessCur(k, iCell) + rkWeight &
                                            * layerThicknessTend(k, iCell)
+            !call mpas_log_write('layer tend = $r', realArgs=(/layerThicknessTend(k,iCell)/))
          end do
       end do
       !$omp end do
@@ -1273,6 +1274,7 @@ module ocn_time_integration_rk4
       do iCell = 1, nCells
          do k = 1, maxLevelCell(iCell)
             layerThicknessNew(k, iCell) = layerThicknessNew(k, iCell) + rkWeight * layerThicknessTend(k, iCell)
+            !call mpas_log_write('update tend = $r', realArgs=(/layerThicknessTend(k,iCell)/))
          end do
       end do
       !$omp end do
