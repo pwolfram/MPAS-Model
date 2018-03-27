@@ -1,4 +1,7 @@
 <regression_suite name="nightly_ocean_test_suite">
+	<test name="Drying slope 10km -- RK4" core="ocean" configuration="drying_slope" resolution="10km" test="default_RK4">
+		<script name="run_test.py"/>
+	</test>
 	<test name="Overflow 10km" core="ocean" configuration="overflow" resolution="10km" test="default">
 		<script name="run_test.py"/>
 	</test>

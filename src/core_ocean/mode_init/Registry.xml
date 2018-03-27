@@ -3,6 +3,7 @@
 #include "Registry_internal_waves.xml"
 #include "Registry_overflow.xml"
 #include "Registry_onshore_wave.xml"
+#include "Registry_drying_slope.xml"
 #include "Registry_global_ocean.xml"
 #include "Registry_cvmix_WSwSBF.xml"
 #include "Registry_iso.xml"
