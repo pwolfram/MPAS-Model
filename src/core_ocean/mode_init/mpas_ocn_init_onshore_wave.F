@@ -105,7 +105,7 @@ contains
 
       ! Define configs
       character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid, config_onshore_wave_layer_type
-      logical, pointer :: config_onshore_wave_use_distances
+      logical, pointer :: config_onshore_wave_use_distances, config_alter_ICs_for_pbcs
       real (kind=RKIND), pointer :: config_onshore_wave_plug_width_dist, config_onshore_wave_slope_center_dist, &
                                     config_onshore_wave_slope_width_dist, config_onshore_wave_plug_width_frac, &
                                     config_onshore_wave_slope_center_frac, config_onshore_wave_slope_width_frac, &
@@ -149,6 +149,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_center_dist', config_onshore_wave_ridge_depressionwave_center_dist)
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_width_dist', config_onshore_wave_ridge_depressionwave_width_dist)
       call mpas_pool_get_config(ocnConfigs, 'config_onshore_wave_ridge_depressionwave_amplitude', config_onshore_wave_ridge_depressionwave_amplitude)
+      call mpas_pool_get_config(ocnConfigs, 'config_alter_ICs_for_pbcs', config_alter_ICs_for_pbcs)
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
       call mpas_pool_get_dimension(meshPool, 'nVertLevelsP1', nVertLevelsP1)
@@ -249,6 +250,15 @@ contains
            bottomDepth(iCell) = config_onshore_wave_ridge_depth &
                      + 0.5_RKIND*(config_onshore_wave_bottom_depth - config_onshore_wave_ridge_depth) &
                      * (1.0_RKIND+tanh((yCell(iCell) - slopeCenter)/slopeWidth))
+
+           if (.not. config_alter_ICs_for_pbcs) then
+             do k = 1,nVertLevels
+               if (refBottomDepth(k) > bottomDepth(iCell)) then
+                 bottomDepth(iCell) = refBottomDepth(k)
+                 exit
+               end if
+             end do
+           end if
 
            if ( trim(config_onshore_wave_layer_type) == 'sigma' .or. trim(config_onshore_wave_layer_type) == 'isopycnal' ) then
               maxLevelCell(iCell) = nVertLevels

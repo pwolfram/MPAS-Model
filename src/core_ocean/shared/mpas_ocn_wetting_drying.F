@@ -239,6 +239,7 @@ contains
      call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
      call mpas_pool_get_array(provisStatePool, 'layerThickness', layerThicknessProvis, 1)
      !call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocity, 1)
+     call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, 1)
 
      call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
@@ -261,12 +262,19 @@ contains
      !$omp do schedule(runtime)
      do iEdge = 1, nEdges
        do k = 1, maxLevelEdgeTop(iEdge)
+         !if (abs(wettingVelocity(k,iEdge)) > 0) then
+         !  normalTransportVelocity(k, iEdge) = 0.0_RKIND
+         !  normalVelocity(k, iEdge) = 0.0_RKIND
+         !end if
          ! allow corrections for damping velocities
-         if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) <= abs(normalTransportVelocity(k,iEdge))) then
+         !if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) < eps)  then
+         !  ! prevent baroclinic flux of tracer
+         !  normalTransportVelocity(k, iEdge) = 0.0_RKIND
+         !  normalVelocity(k, iEdge) = 0.0_RKIND
+         !else if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) <= abs(normalTransportVelocity(k,iEdge))) then
            normalTransportVelocity(k, iEdge) = normalTransportVelocity(k, iEdge) + wettingVelocity(k, iEdge)
-         else if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) < eps) then
-           normalTransportVelocity(k, iEdge) = 0.0_RKIND
-         end if
+           normalVelocity(k, iEdge) = normalVelocity(k, iEdge) + wettingVelocity(k, iEdge)
+         !end if
        end do
        ! works but obviously is over-zealous
        !normalTransportVelocity(:, iEdge) = 0.0_RKIND ! normalTransportVelocity(:, iEdge) + wettingVelocity(:, iEdge)
@@ -382,7 +390,8 @@ contains
         ! can switch with maxLevelEdgeBot(iEdge)
         do k = 1, maxLevelCell(iCell)
           divOutFlux = 0.0_RKIND
-          layerThickness = max(config_drying_min_cell_height, min(layerThicknessProvis(k, iCell), layerThicknessCur(k, iCell)))
+          layerThickness = min(layerThicknessProvis(k, iCell), layerThicknessCur(k, iCell))
+          !layerThickness = layerThicknessCur(k, iCell)
           !call mpas_log_write('prov = $r, curr=$r', realArgs=(/ layerThicknessProvis(k,iCell), layerThicknessCur(k,iCell)/))
           !layerThickness = layerThicknessCur(k, iCell)
           do i = 1, nEdgesOnCell(iCell)
@@ -403,18 +412,19 @@ contains
 
           divOutFlux = abs(divOutFlux)
           ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
-          if ((layerThickness - dt*divOutFlux ) < (config_drying_min_cell_height))  then
+          if ((layerThickness - dt*divOutFlux ) <= (config_drying_min_cell_height))  then
             !call mpas_log_write('LIMIT FLUX')
             ! limit divOutFlux out of cell to keep it wet
-            divOutFlux = (layerThickness - (config_drying_min_cell_height + eps)) / (dt*divOutFlux + eps)
+            divOutFlux = (layerThickness - (config_drying_min_cell_height)) / (dt*divOutFlux)
 
             do i = 1, nEdgesOnCell(iCell)
               iEdge = edgesOnCell(i, iCell)
               if (k <= maxLevelEdgeBot(iEdge)) then
                 if ( normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
                   ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
-                  call mpas_log_write('theta = $r, $r', realArgs=(/ divOutFlux, min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND) /))
+                  !call mpas_log_write('theta = $r, $r', realArgs=(/ divOutFlux, min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND) /))
                   wettingVelocity(k, iEdge) =  - (min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND)) * normalVelocity(k, iEdge)
+                  ! just completely remove the velocity
                   !wettingVelocity(k, iEdge) =  - normalVelocity(k, iEdge)
                 end if
               end if

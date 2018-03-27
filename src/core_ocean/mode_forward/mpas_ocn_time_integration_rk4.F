@@ -440,6 +440,22 @@ module ocn_time_integration_rk4
 
         endif
 
+        ! require that cells don't dry out
+        if (config_use_wetting_drying) then
+             call mpas_timer_start("RK4-prevent drying")
+
+             ! compute wetting velocity to prevent drying of cell (sets up start of next iterate to not dry)
+             if (config_prevent_drying) then
+               block => domain % blocklist
+                 do while (associated(block))
+                   call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), err)
+                   block => block % next
+                 end do
+             end if
+
+             call mpas_timer_stop("RK4-prevent drying")
+             call mpas_threading_barrier()
+        end if
 
         ! Compute tendencies for velocity, thickness, and tracers.
         ! In RK4 notation, we are computing the right hand side f(t,y),
@@ -506,23 +522,6 @@ module ocn_time_integration_rk4
 
         call mpas_timer_stop("RK4-update diagnostic variables")
         call mpas_threading_barrier()
-
-        ! check to ensure that cells have not dried out
-        if (config_use_wetting_drying) then
-             call mpas_timer_start("RK4-prevent drying")
-
-             ! compute wetting velocity to prevent drying of cell (sets up start of next iterate to not dry)
-             if (config_prevent_drying) then
-               block => domain % blocklist
-                 do while (associated(block))
-                   call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), err)
-                   block => block % next
-                 end do
-             end if
-
-             call mpas_timer_stop("RK4-prevent drying")
-             call mpas_threading_barrier()
-        end if
 
         ! Accumulate update.
         ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum so that we have

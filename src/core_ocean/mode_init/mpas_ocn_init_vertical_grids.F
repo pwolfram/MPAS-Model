@@ -549,6 +549,7 @@ contains
             layerThickness(k) = refBottomDepth(k) - refBottomDepth(k-1)
          end do
 
+         ! uses partial bottom cells
          k = maxLevelCell
          layerThickness(k) = bottomDepth - refBottomDepth(k-1)
 
