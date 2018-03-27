@@ -110,7 +110,7 @@ contains
       integer, pointer :: nCellsSolve
       integer :: iCell, k
       integer :: debugUnit
-      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessTend
+      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessNew, layerThicknessTend
       real (kind=RKIND) :: minThickness, layerThick
       character (len=StrKIND) :: debugFilename
 
@@ -125,6 +125,7 @@ contains
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
 
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, timeLevel=1)
+      call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, timeLevel=2)
       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
@@ -137,8 +138,11 @@ contains
       minThickness = +1.0E34
       do iCell = 1, nCellsSolve
         do k = 1, maxLevelCell(iCell)
-          layerThick = layerThicknessCur(k, iCell) + dt*layerThicknessTend(k, iCell)
+          ! this is artificially too restrictive, could have wetting and then drying over RK substeps, which could indicate
+          ! drying when there is no drying occuring
+          !layerThick = layerThicknessCur(k, iCell) + dt*layerThicknessTend(k, iCell)
           !call mpas_log_write( 'Layer thickness = $r', realArgs=(/ layerThick/))
+          layerThick = layerThicknessNew(k, iCell)
           minThickness = min(minThickness, layerThick)
           if ( layerThick <  minHeight ) then
             ! report error if layerThickness constraint is violated
@@ -262,19 +266,18 @@ contains
      !$omp do schedule(runtime)
      do iEdge = 1, nEdges
        do k = 1, maxLevelEdgeTop(iEdge)
-         !if (abs(wettingVelocity(k,iEdge)) > 0) then
-         !  normalTransportVelocity(k, iEdge) = 0.0_RKIND
-         !  normalVelocity(k, iEdge) = 0.0_RKIND
-         !end if
-         ! allow corrections for damping velocities
-         !if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) < eps)  then
-         !  ! prevent baroclinic flux of tracer
-         !  normalTransportVelocity(k, iEdge) = 0.0_RKIND
-         !  normalVelocity(k, iEdge) = 0.0_RKIND
-         !else if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) <= abs(normalTransportVelocity(k,iEdge))) then
+         if (abs(wettingVelocity(k,iEdge)) > 0) then
+           normalTransportVelocity(k, iEdge) = 0.0_RKIND
+           normalVelocity(k, iEdge) = 0.0_RKIND
+         end if
+         if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) < eps)  then
+           ! prevent baroclinic flux of tracer
+           normalTransportVelocity(k, iEdge) = 0.0_RKIND
+           normalVelocity(k, iEdge) = 0.0_RKIND
+         else if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) <= abs(normalTransportVelocity(k,iEdge))) then
            normalTransportVelocity(k, iEdge) = normalTransportVelocity(k, iEdge) + wettingVelocity(k, iEdge)
            normalVelocity(k, iEdge) = normalVelocity(k, iEdge) + wettingVelocity(k, iEdge)
-         !end if
+         end if
        end do
        ! works but obviously is over-zealous
        !normalTransportVelocity(:, iEdge) = 0.0_RKIND ! normalTransportVelocity(:, iEdge) + wettingVelocity(:, iEdge)
