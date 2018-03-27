@@ -388,7 +388,7 @@ contains
 
       call mpas_threading_barrier()
 
-      call mpas_log_write('IN WETTING AND DRYING $i', intArgs=(/nCells/))
+      !call mpas_log_write('IN WETTING AND DRYING $i', intArgs=(/nCells/))
 
       ! need predicted transport velocity to limit drying flux
 
@@ -445,7 +445,7 @@ contains
       !! !$omp end do
 
       call mpas_threading_barrier()
-      call mpas_log_write('OUT OF WETTING AND DRYING')
+      !call mpas_log_write('OUT OF WETTING AND DRYING')
 
    end subroutine ocn_wetting_drying_wettingVelocity !}}}
 
