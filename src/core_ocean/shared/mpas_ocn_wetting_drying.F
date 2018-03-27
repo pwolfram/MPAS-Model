@@ -432,7 +432,8 @@ contains
                 if ( normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
                   ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
                   !call mpas_log_write('theta = $r, $r', realArgs=(/ divOutFlux, min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND) /))
-                  wettingVelocity(k, iEdge) =  - (min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND)) * normalVelocity(k, iEdge)
+                  ! square the fractional term to make values near zero go to zero much quicker (to prevent threshold from being hit)
+                  wettingVelocity(k, iEdge) =  - (min(max(0.0_RKIND, 1.0_RKIND - (divOutFlux*divOutFlux)), 1.0_RKIND)) * normalVelocity(k, iEdge)
                   ! just completely remove the velocity
                   !wettingVelocity(k, iEdge) =  - normalVelocity(k, iEdge)
                 end if
