@@ -125,7 +125,7 @@ module ocn_time_integration_rk4
       logical, pointer :: config_use_standardGM
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
-      logical, pointer :: config_use_wetting_drying, config_verify_not_dry, config_prevent_drying
+      logical, pointer :: config_use_wetting_drying, config_verify_not_dry, config_prevent_drying, config_zero_drying_velocity
       real (kind=RKIND), pointer :: config_mom_del4, config_drying_min_cell_height
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -197,6 +197,7 @@ module ocn_time_integration_rk4
       call mpas_pool_get_config(domain % configs, 'config_prevent_drying', config_prevent_drying)
       call mpas_pool_get_config(domain % configs, 'config_verify_not_dry', config_verify_not_dry)
       call mpas_pool_get_config(domain % configs, 'config_drying_min_cell_height', config_drying_min_cell_height)
+      call mpas_pool_get_config(domain % configs, 'config_zero_drying_velocity', config_zero_drying_velocity)
 
       !
       ! Initialize time_levs(2) with state at current time
@@ -448,7 +449,7 @@ module ocn_time_integration_rk4
              if (config_prevent_drying) then
                block => domain % blocklist
                  do while (associated(block))
-                   call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), err)
+                   call ocn_prevent_drying(block, dt, rk_substep_weights(rk_step), config_zero_drying_velocity, err)
                    block => block % next
                  end do
              end if

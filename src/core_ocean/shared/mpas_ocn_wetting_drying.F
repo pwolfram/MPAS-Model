@@ -185,7 +185,7 @@ contains
 !>  This routine modifies velocity tendency to prevent cell drying.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_prevent_drying(block, dt, rkWeight, err) !{{{
+   subroutine ocn_prevent_drying(block, dt, rkWeight, config_zero_drying_velocity, err) !{{{
 
      !-----------------------------------------------------------------
      !
@@ -196,6 +196,7 @@ contains
      type (block_type), intent(in) :: block
      real (kind=RKIND), intent(in) :: dt
      real (kind=RKIND), intent(in) :: rkWeight
+     logical, pointer :: config_zero_drying_velocity
 
      !-----------------------------------------------------------------
      !
@@ -235,7 +236,7 @@ contains
      call mpas_pool_get_subpool(block % structs, 'state', statePool)
      call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
 
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
+     call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
      call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
@@ -266,18 +267,22 @@ contains
      !$omp do schedule(runtime)
      do iEdge = 1, nEdges
        do k = 1, maxLevelEdgeTop(iEdge)
-         if (abs(wettingVelocity(k,iEdge)) > 0) then
-           normalTransportVelocity(k, iEdge) = 0.0_RKIND
-           normalVelocity(k, iEdge) = 0.0_RKIND
-         end if
          if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) < eps)  then
-           ! prevent baroclinic flux of tracer
+           ! prevent spurious flux for close to zero values
            normalTransportVelocity(k, iEdge) = 0.0_RKIND
            normalVelocity(k, iEdge) = 0.0_RKIND
          else if (abs(normalTransportVelocity(k,iEdge) + wettingVelocity(k,iEdge)) <= abs(normalTransportVelocity(k,iEdge))) then
            normalTransportVelocity(k, iEdge) = normalTransportVelocity(k, iEdge) + wettingVelocity(k, iEdge)
+           ! risk here-- if there is a GM bolus velocity this could cause problems and add in energy into the system
            normalVelocity(k, iEdge) = normalVelocity(k, iEdge) + wettingVelocity(k, iEdge)
          end if
+
+         ! works as a fail-safe
+         if (abs(wettingVelocity(k,iEdge)) > 0 .and. config_zero_drying_velocity) then
+           normalTransportVelocity(k, iEdge) = 0.0_RKIND
+           normalVelocity(k, iEdge) = 0.0_RKIND
+         end if
+
        end do
        ! works but obviously is over-zealous
        !normalTransportVelocity(:, iEdge) = 0.0_RKIND ! normalTransportVelocity(:, iEdge) + wettingVelocity(:, iEdge)
@@ -393,8 +398,9 @@ contains
         ! can switch with maxLevelEdgeBot(iEdge)
         do k = 1, maxLevelCell(iCell)
           divOutFlux = 0.0_RKIND
-          layerThickness = min(layerThicknessProvis(k, iCell), layerThicknessCur(k, iCell))
           !layerThickness = layerThicknessCur(k, iCell)
+          !layerThickness = layerThicknessProvis(k, iCell)
+          layerThickness = min(layerThicknessProvis(k, iCell), layerThicknessCur(k, iCell))
           !call mpas_log_write('prov = $r, curr=$r', realArgs=(/ layerThicknessProvis(k,iCell), layerThicknessCur(k,iCell)/))
           !layerThickness = layerThicknessCur(k, iCell)
           do i = 1, nEdgesOnCell(iCell)
@@ -418,7 +424,7 @@ contains
           if ((layerThickness - dt*divOutFlux ) <= (config_drying_min_cell_height))  then
             !call mpas_log_write('LIMIT FLUX')
             ! limit divOutFlux out of cell to keep it wet
-            divOutFlux = (layerThickness - (config_drying_min_cell_height)) / (dt*divOutFlux)
+            divOutFlux = (layerThickness - (config_drying_min_cell_height + eps)) / (dt*divOutFlux + eps)
 
             do i = 1, nEdgesOnCell(iCell)
               iEdge = edgesOnCell(i, iCell)
