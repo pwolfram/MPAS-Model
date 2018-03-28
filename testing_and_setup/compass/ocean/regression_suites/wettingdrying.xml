@@ -1,23 +1,37 @@
 <regression_suite name="nightly_ocean_test_suite">
-	<test name="Drying slope 10km -- RK4" core="ocean" configuration="drying_slope" resolution="10km" test="default_RK4">
+	<test name="Overflow 10km (PASS)" core="ocean" configuration="overflow" resolution="10km" test="default">
 		<script name="run_test.py"/>
 	</test>
-	<test name="Overflow 10km" core="ocean" configuration="overflow" resolution="10km" test="default">
+	<test name="Overflow 10km drying prevention on (PASS)" core="ocean" configuration="overflow" resolution="10km" test="default_prevent_drying">
 		<script name="run_test.py"/>
 	</test>
-	<test name="Overflow 10km -- drying prevention on" core="ocean" configuration="overflow" resolution="10km" test="default_prevent_drying">
+	<test name="Drying due to wave on slope 10km RK4, drying off (FAIL)" core="ocean" configuration="onshore_wave" resolution="10km" test="drying_RK4_drying_off">
 		<script name="run_test.py"/>
 	</test>
-	<test name="Drying due to wave on slope 10km - RK4 " core="ocean" configuration="onshore_wave" resolution="10km" test="drying_RK4">
+	<test name="Drying due to wave on slope 10km RK4, drying on (PASS)" core="ocean" configuration="onshore_wave" resolution="10km" test="drying_RK4">
 		<script name="run_test.py"/>
 	</test>
-	<test name="No drying due to wave on slope 10km - RK4" core="ocean" configuration="onshore_wave" resolution="10km" test="default_RK4">
+	<test name="Drying slope 10km RK4, drying off (FAIL)" core="ocean" configuration="drying_slope" resolution="10km" test="default_RK4_drying_off">
 		<script name="run_test.py"/>
 	</test>
-	<test name="No drying due to wave on slope 10km - split explicit" core="ocean" configuration="onshore_wave" resolution="10km" test="default">
+	<test name="Drying slope 10km RK4, drying on (PASS)" core="ocean" configuration="drying_slope" resolution="10km" test="default_RK4">
 		<script name="run_test.py"/>
 	</test>
-	<test name="Drying due to wave on slope 10km - split explicit" core="ocean" configuration="onshore_wave" resolution="10km" test="drying">
+	<test name="No drying due to wave on slope 10km RK4 (PASS)" core="ocean" configuration="onshore_wave" resolution="10km" test="default_RK4">
 		<script name="run_test.py"/>
 	</test>
+<!--
+	<test name="No drying due to wave on slope 10km split explicit (PASS)" core="ocean" configuration="onshore_wave" resolution="10km" test="default">
+		<script name="run_test.py"/>
+	</test>
+	<test name="Drying due to wave on slope 10km split explicit" core="ocean" configuration="onshore_wave" resolution="10km" test="drying">
+		<script name="run_test.py"/>
+	</test>
+	<test name="No drying due to wave on slope 5km RK4 " core="ocean" configuration="onshore_wave" resolution="5km" test="default">
+		<script name="run_test.py"/>
+	</test>
+	<test name="Drying due to wave on slope 5km RK4 " core="ocean" configuration="onshore_wave" resolution="5km" test="drying_RK4">
+		<script name="run_test.py"/>
+  </test>
+-->
 </regression_suite>

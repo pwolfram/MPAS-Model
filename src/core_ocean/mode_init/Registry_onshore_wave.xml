@@ -15,7 +15,7 @@
 			description="minimum layer thickness"
 			possible_values="Any positive real number, typically 0.01 to 1.0"
 		/>
-		<nml_option name="config_onshore_wave_ridge_depressionwave_center_frac" type="real" default_value="0.70" units="fraction"
+		<nml_option name="config_onshore_wave_ridge_depressionwave_center_frac" type="real" default_value="0.50" units="fraction"
 			description="Location of center of transition to sea surface height depression."
 			possible_values="Any positive real value greater than 0."
 		/>
@@ -23,7 +23,7 @@
 			description="Width of transition region to sea surface height depression."
 			possible_values="Any positive real value greater than 0."
 		/>
-		<nml_option name="config_onshore_wave_ridge_depressionwave_center_dist" type="real" default_value="150e3" units="m"
+		<nml_option name="config_onshore_wave_ridge_depressionwave_center_dist" type="real" default_value="100e3" units="m"
 			description="Location of center of transition to sea surface height depression."
 			possible_values="Any positive real value greater than 0."
 		/>

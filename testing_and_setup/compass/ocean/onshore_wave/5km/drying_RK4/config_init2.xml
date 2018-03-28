@@ -14,8 +14,8 @@
 		<option name="config_ocean_run_mode">'init'</option>
 		<option name="config_onshore_wave_use_distances">.true.</option>
 		<option name="config_use_debugTracers">.true.</option>
-		<option name="config_onshore_wave_ridge_depressionwave_amplitude">100.0</option>
-		<option name="config_onshore_wave_ridge_depth">10.0</option>
+		<option name="config_onshore_wave_ridge_depressionwave_amplitude">300.0</option>
+		<option name="config_onshore_wave_ridge_depth">5.0</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">

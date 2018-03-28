@@ -12,7 +12,7 @@
 		<option name="config_btr_dt">'0000_00:00:10'</option>
 		<option name="config_run_duration">'0000_02:00:00'</option>
 		<option name="config_use_const_visc">.true.</option>
-		<option name="config_implicit_bottom_drag_coeff">1.0e-2</option>
+		<option name="config_implicit_bottom_drag_coeff">1.0e-3</option>
 		<option name="config_use_mom_del2">.true.</option>
 		<option name="config_mom_del2">1.0e5</option>
 		<option name="config_use_debugTracers">.true.</option>
