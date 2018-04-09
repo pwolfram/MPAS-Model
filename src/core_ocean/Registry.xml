@@ -880,6 +880,10 @@
 					description="If true, verify that cells are at least config_min_cell_height thick."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_thickness_flux_type" type="character" default_value="upwind" units="unitless"
+					description="If 'upwind', use upwind to evaluate the edge-value for layerThickness, i.e., layerThicknessEdge.  The standard MPAS-O approach is 'centered'."
+					possible_values="'upwind', 'centered'"
+		/>
 	</nml_record>
 	<nml_record name="ocean_constants">
 		<nml_option name="config_density0" type="real" default_value="1026.0" units="kg m^{-3}"
