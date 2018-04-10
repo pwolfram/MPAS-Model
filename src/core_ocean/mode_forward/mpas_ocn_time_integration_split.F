@@ -31,6 +31,7 @@ module ocn_time_integration_split
    use mpas_threading
    use mpas_timekeeping
    use mpas_log
+   use mpas_io_units
 
    use ocn_tendency
    use ocn_diagnostics
@@ -127,7 +128,7 @@ module ocn_time_integration_split
       integer :: edgeHaloComputeCounter, cellHaloComputeCounter
 
       ! Config options
-      character (len=StrKIND), pointer :: config_time_integrator
+      character (len=StrKIND), pointer :: config_time_integrator, config_debug_split_explicit_filename
       integer, pointer :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, config_n_bcl_iter_end
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
@@ -138,6 +139,8 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
+      logical, pointer :: config_debug_split_explicit
+      integer :: debugSplitExplicitUnit
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -250,6 +253,8 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit_filename', config_debug_split_explicit_filename)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -626,7 +631,14 @@ module ocn_time_integration_split
          oldBtrSubcycleTime = 1
          newBtrSubcycleTime = 2
 
-         if (trim(config_time_integrator) == 'unsplit_explicit') then
+         if (config_debug_split_explicit) then
+           ! open up temp file
+           call mpas_new_unit(debugSplitExplicitUnit)
+           ! note, presumes we are running on a single core here...
+           open(unit=debugSplitExplicitUnit, file=trim(config_debug_split_explicit_filename), form='formatted', status='unknown')
+         end if
+
+         if (trim(config_time_integrator) == 'unsplit_explicit') then !{{{
 
             call mpas_timer_start('btr vel ue')
             block => domain % blocklist
@@ -673,7 +685,7 @@ module ocn_time_integration_split
                block => block % next
             end do  ! block
             call mpas_timer_stop('btr vel ue')
-
+!}}}
          elseif (trim(config_time_integrator) == 'split_explicit') then
 
             ! Initialize variables for barotropic subcycling
@@ -903,6 +915,13 @@ module ocn_time_integration_split
                                           + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
                 end do
                 !$omp end do
+
+                if (config_debug_split_explicit) then
+                  ! add in write statement for debugging to print to a standard text file (get single strip out) 4.000
+                  ! add in a new line each time for the write statement
+                  write(debugSplitExplicitUnit,*) sshSubcycleNew(:nCells:4)  ! 4 hard coded for an example for brevity of case
+                  flush(debugSplitExplicitUnit)
+                end if
 
                 !! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
 
@@ -1380,6 +1399,13 @@ module ocn_time_integration_split
             call mpas_timer_stop('btr se ssh verif')
 
          endif ! split_explicit
+
+         if (config_debug_split_explicit) then
+           ! close file
+           flush(debugSplitExplicitUnit)
+           close(debugSplitExplicitUnit)
+           call mpas_release_unit(debugSplitExplicitUnit)
+         end if
 
          call mpas_timer_stop("se btr vel")
 

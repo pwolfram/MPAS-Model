@@ -1,26 +1,27 @@
 <?xml version="1.0"?>
-<config case="init_step2">
-	<add_link source="../init_step1/culled_mesh.nc" dest="init.nc"/>
-	<add_link source="../init_step1/culled_graph.info" dest="graph.info"/>
-	<add_link source_path="script_test_dir" source="run_iter.bash" dest="my_script.sh"/>
+<config case="init_step1">
+
+	<get_file hash="d4umuzo339" dest_path="mesh_database" file_name="doubly_periodic_10km_40x240km_planar.151217.nc">
+		<mirror protocol="wget" url="http://oceans11.lanl.gov/mpas_data/mesh_database/"/>
+	</get_file>
+
+	<add_link source_path="mesh_database" source="doubly_periodic_10km_40x240km_planar.151217.nc" dest="base_mesh.nc"/>
 
 	<add_executable source="model" dest="ocean_model"/>
-	<add_executable source="metis" dest="metis"/>
+	<add_executable source="cell_culler" dest="MpasCellCuller.x"/>
+	<add_executable source="mesh_converter" dest="MpasMeshConverter.x"/>
 
 	<namelist name="namelist.ocean" mode="init">
-		<option name="config_init_configuration">'onshore_wave'</option>
-		<option name="config_vert_levels">-1</option>
-		<option name="config_onshore_wave_vert_levels">200</option>
+		<option name="config_init_configuration">'overflow'</option>
+		<option name="config_vert_levels">1</option>
 		<option name="config_ocean_run_mode">'init'</option>
-		<option name="config_onshore_wave_use_distances">.true.</option>
-		<option name="config_use_debugTracers">.true.</option>
-		<option name="config_onshore_wave_ridge_depressionwave_amplitude">400.0</option>
-		<option name="config_onshore_wave_ridge_depth">50.0</option>
+		<option name="config_overflow_use_distances">.true.</option>
+		<option name="config_write_cull_cell_mask">.true.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">
 		<stream name="input_init">
-			<attribute name="filename_template">init.nc</attribute>
+			<attribute name="filename_template">mesh.nc</attribute>
 		</stream>
 		<stream name="output_init">
 			<attribute name="type">output</attribute>
@@ -49,7 +50,15 @@
 	</streams>
 
 	<run_script name="run.py">
-		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
-	</run_script>
+		<step executable="./MpasMeshConverter.x">
+			<argument flag="">base_mesh.nc</argument>
+			<argument flag="">mesh.nc</argument>
+		</step>
 
+		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+
+		<step executable="./MpasCellCuller.x">
+			<argument flag="">ocean.nc</argument>
+		</step>
+	</run_script>
 </config>

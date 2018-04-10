@@ -10,7 +10,7 @@
 	<namelist name="namelist.ocean" mode="init">
 		<option name="config_init_configuration">'onshore_wave'</option>
 		<option name="config_vert_levels">-1</option>
-		<option name="config_onshore_wave_vert_levels">200</option>
+		<option name="config_onshore_wave_vert_levels">50</option>
 		<option name="config_ocean_run_mode">'init'</option>
 		<option name="config_onshore_wave_use_distances">.true.</option>
 		<option name="config_use_debugTracers">.true.</option>
