@@ -16,6 +16,12 @@
 		<option name="config_use_mom_del2">.true.</option>
 		<option name="config_mom_del2">4.0e4</option>
 		<option name="config_use_debugTracers">.true.</option>
+		<option name="config_use_wetting_drying">.true.</option>
+		<option name="config_check_ssh_consistency">.false.</option>
+		<option name="config_use_wetting_dryingconfig_debug_split_explicit">.true.</option>
+		<option name="config_debug_split_explicit">.true.</option>
+		<option name="config_prevent_drying">.false.</option>
+		<option name="config_verify_not_dry">.true.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">

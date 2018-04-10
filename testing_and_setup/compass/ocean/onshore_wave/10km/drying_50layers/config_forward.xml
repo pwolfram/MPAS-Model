@@ -8,7 +8,7 @@
 	<add_executable source="metis" dest="metis"/>
 
 	<namelist name="namelist.ocean" mode="forward">
-		<option name="config_dt">'0000_00:00:30'</option>
+		<option name="config_dt">'0000_02:00:00'</option>
 		<option name="config_btr_dt">'0000_00:00:10'</option>
 		<option name="config_run_duration">'0000_02:00:00'</option>
 		<option name="config_use_const_visc">.true.</option>
@@ -18,6 +18,10 @@
 		<option name="config_use_debugTracers">.true.</option>
 		<option name="config_use_wetting_drying">.true.</option>
 		<option name="config_check_ssh_consistency">.false.</option>
+		<option name="config_use_wetting_dryingconfig_debug_split_explicit">.true.</option>
+		<option name="config_debug_split_explicit">.true.</option>
+		<option name="config_prevent_drying">.false.</option>
+		<option name="config_verify_not_dry">.true.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
