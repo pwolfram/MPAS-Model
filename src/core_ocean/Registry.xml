@@ -876,7 +876,7 @@
 					description="If true, just zero out velocity that is contributing to drying for cell that is drying.  This option can be used to estimate acceptable minimum thicknesses for a run."
 					possible_values=".true. or .false."
 		/>
-		<nml_option name="config_debug_split_explicit" type="logical" default_value=".true." units="unitless"
+		<nml_option name="config_debug_split_explicit" type="logical" default_value=".false." units="unitless"
 					description="If true, output ssh from split explicit (1 proc only)."
 					possible_values=".true. or .false."
 		/>
