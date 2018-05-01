@@ -559,8 +559,8 @@ module ocn_time_integration_rk4
             end do
         end if
 
-            call mpas_timer_stop("RK4- check wet cells")
-            call mpas_threading_barrier()
+        call mpas_timer_stop("RK4- check wet cells")
+        call mpas_threading_barrier()
       end if
 
       call mpas_timer_stop("RK4-main loop")
