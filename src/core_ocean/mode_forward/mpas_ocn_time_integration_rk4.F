@@ -556,12 +556,12 @@ module ocn_time_integration_rk4
             do while (associated(block))
               call ocn_wetting_drying_verify(block, config_drying_min_cell_height, dt, err)
               block => block % next
-              end do
-            end if
+            end do
+        end if
 
             call mpas_timer_stop("RK4- check wet cells")
             call mpas_threading_barrier()
-          end if
+      end if
 
       call mpas_timer_stop("RK4-main loop")
       call mpas_threading_barrier()
