@@ -721,28 +721,28 @@ contains
 #endif
           end if
 
-          ! compute necessary information for autocorrelation !{{{
-          ! get the updated velocity
-          ! ensure that buoyancy is fixed for each run
-          buoyancyInterp = buoyancyParticle
-          ! we just need the last part of the velocity field interpolation because we are at the end of the timestep
-          timeInterpOrder = 2
-          timeCoeff(1) = 0.0_RKIND
-          timeCoeff(2) = 1.0_RKIND
-          ! return interpolated horizontal velocity "particleVelocity" and vertical velocity "particleVelocityVert"
-          ! noting we use the final positions
-#ifdef MPAS_DEBUG
-          call mpas_timer_start("velocity_time_interpolationLPT")
-#endif
-          call velocity_time_interpolation(particleVelocity, particleVelocityVert, &
-            diagnosticsPool, lagrPartTrackFieldsPool, &
-            timeInterpOrder, timeCoeff, iCell, iLevel, buoyancyInterp, maxLevelCell, &
-            verticalTreatment, indexLevel, nCellVertices, verticesOnCell, boundaryVertex, &
-            particlePosition, zLevelParticle, zMid, zTop, vertVelocityTop, xVertex, yVertex, zVertex, &
-            meshPool, areaBArray)
-#ifdef MPAS_DEBUG
-          call mpas_timer_stop("velocity_time_interpolationLPT")
-#endif
+!          ! compute necessary information for autocorrelation !{{{
+!          ! get the updated velocity
+!          ! ensure that buoyancy is fixed for each run
+!          buoyancyInterp = buoyancyParticle
+!          ! we just need the last part of the velocity field interpolation because we are at the end of the timestep
+!          timeInterpOrder = 2
+!          timeCoeff(1) = 0.0_RKIND
+!          timeCoeff(2) = 1.0_RKIND
+!          ! return interpolated horizontal velocity "particleVelocity" and vertical velocity "particleVelocityVert"
+!          ! noting we use the final positions
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_start("velocity_time_interpolationLPT")
+!#endif
+!          call velocity_time_interpolation(particleVelocity, particleVelocityVert, &
+!            diagnosticsPool, lagrPartTrackFieldsPool, &
+!            timeInterpOrder, timeCoeff, iCell, iLevel, buoyancyInterp, maxLevelCell, &
+!            verticalTreatment, indexLevel, nCellVertices, verticesOnCell, boundaryVertex, &
+!            particlePosition, zLevelParticle, zMid, zTop, vertVelocityTop, xVertex, yVertex, zVertex, &
+!            meshPool, areaBArray)
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_stop("velocity_time_interpolationLPT")
+!#endif
           ! convert horizontal velocity to lat/lon velocity
 
 !          ! store velocity for use in computing normalized autocorrelation offline
@@ -763,9 +763,9 @@ contains
 !          sumUU = sumUU + lonVel*lonVel
 !          sumUV = sumUV + lonVel*latVel
 !          sumVV = sumVV + latVel*latVel
-#ifdef MPAS_DEBUG
-          call mpas_timer_stop("storeSingleParticleStats")
-#endif
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_stop("storeSingleParticleStats")
+!#endif
           !}}}
 
           ! properly store particle position (because we can't store arrays directly for particles and must
