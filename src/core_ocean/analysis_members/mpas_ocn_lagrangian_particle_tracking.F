@@ -265,7 +265,7 @@ contains
       real (kind=RKIND), dimension(3) :: xSubStep, diffSubStep, diffParticlePosition
       real (kind=RKIND), pointer :: zLevelParticle
       real (kind=RKIND), dimension(:,:), pointer :: zTop, vertVelocityTop, zMid, areaBArray
-      real (kind=RKIND), dimension(:), pointer :: bottomDepth
+      real (kind=RKIND), dimension(:), pointer :: bottomDepth, ssh
       type (field2DReal), pointer :: normalVelocity, uVertexVelocity, vVertexVelocity, wVertexVelocity, layerThickness
 
       real (kind=RKIND), dimension(:,:), pointer :: uVertexVelocityArray, vVertexVelocityArray, wVertexVelocityArray, &
@@ -374,6 +374,7 @@ contains
         ! now there is a time level so selection of the correct time level appears to be tricky
         ! the issue is large, nearly NAN normalVelocities with timeLevel=2
         call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
+        call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel=timeLevel)
         ! potentially a costly function call, but ensures halos are ok
         !call mpas_dmpar_exch_halo_field(normalVelocity)
         call mpas_pool_get_field(statePool, 'layerThickness', layerThickness, timeLevel=timeLevel)
@@ -707,9 +708,9 @@ contains
             !! the particle is in a cell that does not have the proper buoyancy target because this implies
             !! that the buoyancy tracking mode has completely failed.
             !! need to make sure it is validated for buoyancy particles
-            iLevelBuoyancy = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell))
+            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell))
             ! interpolate the scalars now (assumes that scalar value is constant within a particular cell)
-            call interp_cell_scalars(iLevelBuoyancy, maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell), &
+            call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell), &
               zMid(:,iCell), zLevelParticle)
             !}}}
           else
@@ -722,6 +723,34 @@ contains
             call mpas_timer_stop("mpas_get_vertical_idLPT")
 #endif
           end if
+
+#ifdef MPAS_DEBUG
+          call mpas_timer_start("verifyParticleDepthInDomainLPT")
+#endif
+          !verify particles are still in domain !{{{
+          ! check and verify that free floating particle hasn't gone out of boundary
+          if (iLevel <= 0 .or. zLevelParticle > bottomDepth(iCell) .or. -zLevelParticle > ssh(iCell)) then
+            if (iLevel == 0) then
+              call mpas_log_write(' Warning: Particle location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), &
+                messageType=MPAS_LOG_ERR)
+            end if
+            if (iLevel == -1) then
+              call mpas_log_write(' Warning: Particle location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), &
+                messageType=MPAS_LOG_ERR)
+            end if
+            ! verify that it is less than SSH and greater than bottomDepth
+            if (zLevelParticle > bottomDepth(iCell)) then
+              call mpas_log_write(' Warning: Particle height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), &
+                messageType=MPAS_LOG_ERR)
+             end if
+            if (-zLevelParticle > ssh(iCell)) then
+              call mpas_log_write(' Warning: Particle height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), &
+                messageType=MPAS_LOG_ERR)
+             end if
+          end if
+#ifdef MPAS_DEBUG
+          call mpas_timer_stop("verifyParticleDepthInDomainLPT")
+#endif
 
 !          ! compute necessary information for autocorrelation !{{{
 !          ! get the updated velocity
