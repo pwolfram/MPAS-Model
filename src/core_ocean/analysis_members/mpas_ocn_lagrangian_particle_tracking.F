@@ -75,6 +75,8 @@ module ocn_lagrangian_particle_tracking
    ! as quite a few of the subroutines
    integer, dimension(:), pointer :: g_compProcNeighsNearby => null(), g_compProcNeighs => null(), g_ioProcNeighs=>null()
 
+   REAL (kind=RKIND), parameter :: eps=1e-12
+
 !***********************************************************************
 
 contains
@@ -736,11 +738,11 @@ contains
             call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
           end if
           ! verify that it is less than SSH and greater than bottomDepth
-          if (-zLevelParticle > bottomDepth(iCell)) then
+          if (zLevelParticle + bottomDepth(iCell) < eps) then
             call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), intArgs=(/iCell/),&
               messageType=MPAS_LOG_ERR)
            end if
-          if (zLevelParticle > ssh(iCell)) then
+          if (zLevelParticle - ssh(iCell) > eps) then
             call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/),&
               messageType=MPAS_LOG_ERR)
            end if
