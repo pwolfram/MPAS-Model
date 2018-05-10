@@ -614,7 +614,8 @@ contains
 #ifdef MPAS_DEBUG
                 call mpas_timer_start("mpas_get_vertical_idLPT")
 #endif
-                iLevel = mpas_get_vertical_id(maxLevelCell(iCell), zSubStep, zMid(:,iCell))
+                ! must have inputs into mpas_get_vertical_id be positive to get right top/bottom
+                iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zSubStep, -zMid(:,iCell))
 #ifdef MPAS_DEBUG
                 call mpas_timer_stop("mpas_get_vertical_idLPT")
 #endif
@@ -720,7 +721,7 @@ contains
 #ifdef MPAS_DEBUG
             call mpas_timer_start("mpas_get_vertical_idLPT")
 #endif
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), zLevelParticle, zMid(:,iCell))
+            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
 #ifdef MPAS_DEBUG
             call mpas_timer_stop("mpas_get_vertical_idLPT")
 #endif
@@ -732,14 +733,14 @@ contains
           !verify particles are still in domain !{{{
           ! check and verify that free floating particle hasn't gone out of boundary
           if (iLevel == 0) then
-            call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
+            call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
           end if
           if (iLevel == -1) then
-            call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
+            call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
           end if
           ! verify that it is less than SSH and greater than bottomDepth
           if (zLevelParticle + bottomDepth(iCell) < eps) then
-            call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), intArgs=(/iCell/),&
+            call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, -bottomDepth(iCell) /), intArgs=(/iCell/),&
               messageType=MPAS_LOG_ERR)
            end if
           if (zLevelParticle - ssh(iCell) > eps) then
@@ -1828,7 +1829,7 @@ contains
           else
             ! make sure final zLevelParticle is ok so that it can't extent past zMid range
 
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), zLevelParticle, zMid(:,iCell))
+            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
           end if
 
           ! compute necessary information for autocorrelation !{{{

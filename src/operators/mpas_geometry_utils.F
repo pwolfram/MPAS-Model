@@ -1192,7 +1192,8 @@ module mpas_geometry_utils
 !>  This function determines the nearest vertical level to a particular
 !>  location within a column.  If the location is below the bottom
 !>  vertical level this returns -1, if it is above the top level, 0.
-!>  Levels are referenced to vertical cell centers.
+!>  Levels are referenced to vertical cell centers and are assumed
+!>  to be positive coming into the function, e.g., like potentialDensity.
 !-----------------------------------------------------------------------
    function mpas_get_vertical_id(nLevels, zLoc, zMid) !{{{
 
