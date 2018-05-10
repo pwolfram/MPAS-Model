@@ -392,6 +392,7 @@ contains
         call mpas_pool_get_config(meshPool, 'sphere_radius', sphereRadius)
         !}}}
 
+        ! super-cycling:
         ! get the appropriate time scale for particle integration, e.g., dtSim
         if (trim(config_AM_lagrPartTrack_compute_interval) == 'dt') then
           ! from time step value
@@ -679,7 +680,7 @@ contains
 #endif
           !}}}
 
-          !!!!!!!!!! PERFORM SAMPLING (VELOCITY, TEMP, SALINITY, ETC) !!!!!!!!!!
+          !!!!!!!!!! PERFORM SAMPLING (VELOCITY, TEMP, SALINITY, ETC) AND ERROR CHECKING!!!!!!!!!!
           ! this could be done just before the output anyway
 
           ! need iCell computed for final position
@@ -697,6 +698,7 @@ contains
           call mpas_timer_stop("get_validated_cell_idLPT")
 #endif
 
+          ! ensure that buoyancySurface particles have the correct zLevelParticle (interpolated based on their location)
           if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
             !! determine index level (don't need validated version because that will "fix" values which we may not want
             !! however, if the particle's target buoyancy surface doesn't exist then we will need to
@@ -775,6 +777,7 @@ contains
           zParticle = particlePosition(3)
 
           !!!!!!!!!! PASS PARTICLES FROM PROCESSOR TO PROCESSOR !!!!!!!!!!
+          ! note, assumes that integration above didn't move particle past halo
           !{{{
           ! 1. determine if iCell is on halo (just set each particle's currentBlock to the correct currentBlock
           ! 2. determine owning block in halo, update particle's currentBlock
@@ -2047,9 +2050,8 @@ contains
     call mpas_pool_get_config(meshPool, 'x_period', x_period)
     call mpas_pool_get_config(meshPool, 'y_period', y_period)
 
-    ! allocations for particular cell !{{{
+    ! allocations for particular cell
     allocate(vertCoords(3,nCellVertices), uvCell(3,nCellVertices), areaB(nCellVertices))
-    !}}}
 
     ! get horizontal vertex locations (noting that there may be a
     ! bit of error because the particle could be at the top
@@ -2763,7 +2765,7 @@ contains
          alpha = (zSubStep - zTop(iLevel))/(zTop(iLevel+1)- zTop(iLevel))
 #ifdef MPAS_DEBUG
        else
-         call mpas_log_write( 'Error with vertical velocity interpolation!')
+         call mpas_log_write( 'Error with vertical velocity interpolation!', MPAS_LOG_CRIT)
 #endif
        end if
        interp_vert_velocity_to_zlevel = alpha * vertVelocityTop(iLevel)+ (1.0_RKIND - alpha) * vertVelocityTop(iLevel+1)
