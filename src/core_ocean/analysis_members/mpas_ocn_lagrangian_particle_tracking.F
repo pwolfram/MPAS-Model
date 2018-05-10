@@ -732,10 +732,10 @@ contains
 #endif
           !verify particles are still in domain !{{{
           ! check and verify that free floating particle hasn't gone out of boundary
-          if (iLevel == 0) then
+          if (iLevel == -1) then
             call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
           end if
-          if (iLevel == -1) then
+          if (iLevel == 0) then
             call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
           end if
           ! verify that it is less than SSH and greater than bottomDepth
