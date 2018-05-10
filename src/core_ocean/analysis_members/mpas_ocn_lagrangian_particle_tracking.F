@@ -729,23 +729,22 @@ contains
 #endif
           !verify particles are still in domain !{{{
           ! check and verify that free floating particle hasn't gone out of boundary
-          if (iLevel <= 0 .or. zLevelParticle > bottomDepth(iCell) .or. -zLevelParticle > ssh(iCell)) then
-            if (iLevel == 0) then
-              call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
-            end if
-            if (iLevel == -1) then
-              call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
-            end if
-            ! verify that it is less than SSH and greater than bottomDepth
-            if (-zLevelParticle > bottomDepth(iCell)) then
-              call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), intArgs=(/iCell/),&
-                messageType=MPAS_LOG_ERR)
-             end if
-            if (zLevelParticle > ssh(iCell)) then
-              call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/),&
-                messageType=MPAS_LOG_ERR)
-             end if
+          if (iLevel == 0) then
+            call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
           end if
+          if (iLevel == -1) then
+            call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
+          end if
+          ! verify that it is less than SSH and greater than bottomDepth
+          if (-zLevelParticle > bottomDepth(iCell)) then
+            call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), intArgs=(/iCell/),&
+              messageType=MPAS_LOG_ERR)
+           end if
+          if (zLevelParticle > ssh(iCell)) then
+            call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/),&
+              messageType=MPAS_LOG_ERR)
+           end if
+           !}}}
 #ifdef MPAS_DEBUG
           call mpas_timer_stop("verifyParticleDepthInDomainLPT")
 #endif
