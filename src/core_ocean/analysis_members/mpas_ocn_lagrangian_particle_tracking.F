@@ -265,7 +265,7 @@ contains
       real (kind=RKIND), dimension(3) :: xSubStep, diffSubStep, diffParticlePosition
       real (kind=RKIND), pointer :: zLevelParticle
       real (kind=RKIND), dimension(:,:), pointer :: zTop, vertVelocityTop, zMid, areaBArray
-      real (kind=RKIND), dimension(:), pointer :: bottomDepth
+      real (kind=RKIND), dimension(:), pointer :: bottomDepth, ssh
       type (field2DReal), pointer :: normalVelocity, uVertexVelocity, vVertexVelocity, wVertexVelocity, layerThickness
 
       real (kind=RKIND), dimension(:,:), pointer :: uVertexVelocityArray, vVertexVelocityArray, wVertexVelocityArray, &
@@ -374,6 +374,7 @@ contains
         ! now there is a time level so selection of the correct time level appears to be tricky
         ! the issue is large, nearly NAN normalVelocities with timeLevel=2
         call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
+        call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel=timeLevel)
         ! potentially a costly function call, but ensures halos are ok
         !call mpas_dmpar_exch_halo_field(normalVelocity)
         call mpas_pool_get_field(statePool, 'layerThickness', layerThickness, timeLevel=timeLevel)
@@ -392,6 +393,7 @@ contains
         call mpas_pool_get_config(meshPool, 'sphere_radius', sphereRadius)
         !}}}
 
+        ! super-cycling:
         ! get the appropriate time scale for particle integration, e.g., dtSim
         if (trim(config_AM_lagrPartTrack_compute_interval) == 'dt') then
           ! from time step value
@@ -679,7 +681,7 @@ contains
 #endif
           !}}}
 
-          !!!!!!!!!! PERFORM SAMPLING (VELOCITY, TEMP, SALINITY, ETC) !!!!!!!!!!
+          !!!!!!!!!! PERFORM SAMPLING (VELOCITY, TEMP, SALINITY, ETC) AND ERROR CHECKING!!!!!!!!!!
           ! this could be done just before the output anyway
 
           ! need iCell computed for final position
@@ -697,6 +699,7 @@ contains
           call mpas_timer_stop("get_validated_cell_idLPT")
 #endif
 
+          ! ensure that buoyancySurface particles have the correct zLevelParticle (interpolated based on their location)
           if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
             !! determine index level (don't need validated version because that will "fix" values which we may not want
             !! however, if the particle's target buoyancy surface doesn't exist then we will need to
@@ -705,9 +708,9 @@ contains
             !! the particle is in a cell that does not have the proper buoyancy target because this implies
             !! that the buoyancy tracking mode has completely failed.
             !! need to make sure it is validated for buoyancy particles
-            iLevelBuoyancy = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell))
+            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell))
             ! interpolate the scalars now (assumes that scalar value is constant within a particular cell)
-            call interp_cell_scalars(iLevelBuoyancy, maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell), &
+            call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell), &
               zMid(:,iCell), zLevelParticle)
             !}}}
           else
@@ -721,28 +724,56 @@ contains
 #endif
           end if
 
-          ! compute necessary information for autocorrelation !{{{
-          ! get the updated velocity
-          ! ensure that buoyancy is fixed for each run
-          buoyancyInterp = buoyancyParticle
-          ! we just need the last part of the velocity field interpolation because we are at the end of the timestep
-          timeInterpOrder = 2
-          timeCoeff(1) = 0.0_RKIND
-          timeCoeff(2) = 1.0_RKIND
-          ! return interpolated horizontal velocity "particleVelocity" and vertical velocity "particleVelocityVert"
-          ! noting we use the final positions
 #ifdef MPAS_DEBUG
-          call mpas_timer_start("velocity_time_interpolationLPT")
+          call mpas_timer_start("verifyParticleDepthInDomainLPT")
 #endif
-          call velocity_time_interpolation(particleVelocity, particleVelocityVert, &
-            diagnosticsPool, lagrPartTrackFieldsPool, &
-            timeInterpOrder, timeCoeff, iCell, iLevel, buoyancyInterp, maxLevelCell, &
-            verticalTreatment, indexLevel, nCellVertices, verticesOnCell, boundaryVertex, &
-            particlePosition, zLevelParticle, zMid, zTop, vertVelocityTop, xVertex, yVertex, zVertex, &
-            meshPool, areaBArray)
+          !verify particles are still in domain !{{{
+          ! check and verify that free floating particle hasn't gone out of boundary
+          if (iLevel <= 0 .or. zLevelParticle > bottomDepth(iCell) .or. -zLevelParticle > ssh(iCell)) then
+            if (iLevel == 0) then
+              call mpas_log_write(' Warning: Particle location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), &
+                messageType=MPAS_LOG_ERR)
+            end if
+            if (iLevel == -1) then
+              call mpas_log_write(' Warning: Particle location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), &
+                messageType=MPAS_LOG_ERR)
+            end if
+            ! verify that it is less than SSH and greater than bottomDepth
+            if (zLevelParticle > bottomDepth(iCell)) then
+              call mpas_log_write(' Warning: Particle height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, bottomDepth(iCell) /), &
+                messageType=MPAS_LOG_ERR)
+             end if
+            if (-zLevelParticle > ssh(iCell)) then
+              call mpas_log_write(' Warning: Particle height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), &
+                messageType=MPAS_LOG_ERR)
+             end if
+          end if
 #ifdef MPAS_DEBUG
-          call mpas_timer_stop("velocity_time_interpolationLPT")
+          call mpas_timer_stop("verifyParticleDepthInDomainLPT")
 #endif
+
+!          ! compute necessary information for autocorrelation !{{{
+!          ! get the updated velocity
+!          ! ensure that buoyancy is fixed for each run
+!          buoyancyInterp = buoyancyParticle
+!          ! we just need the last part of the velocity field interpolation because we are at the end of the timestep
+!          timeInterpOrder = 2
+!          timeCoeff(1) = 0.0_RKIND
+!          timeCoeff(2) = 1.0_RKIND
+!          ! return interpolated horizontal velocity "particleVelocity" and vertical velocity "particleVelocityVert"
+!          ! noting we use the final positions
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_start("velocity_time_interpolationLPT")
+!#endif
+!          call velocity_time_interpolation(particleVelocity, particleVelocityVert, &
+!            diagnosticsPool, lagrPartTrackFieldsPool, &
+!            timeInterpOrder, timeCoeff, iCell, iLevel, buoyancyInterp, maxLevelCell, &
+!            verticalTreatment, indexLevel, nCellVertices, verticesOnCell, boundaryVertex, &
+!            particlePosition, zLevelParticle, zMid, zTop, vertVelocityTop, xVertex, yVertex, zVertex, &
+!            meshPool, areaBArray)
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_stop("velocity_time_interpolationLPT")
+!#endif
           ! convert horizontal velocity to lat/lon velocity
 
 !          ! store velocity for use in computing normalized autocorrelation offline
@@ -763,9 +794,9 @@ contains
 !          sumUU = sumUU + lonVel*lonVel
 !          sumUV = sumUV + lonVel*latVel
 !          sumVV = sumVV + latVel*latVel
-#ifdef MPAS_DEBUG
-          call mpas_timer_stop("storeSingleParticleStats")
-#endif
+!#ifdef MPAS_DEBUG
+!          call mpas_timer_stop("storeSingleParticleStats")
+!#endif
           !}}}
 
           ! properly store particle position (because we can't store arrays directly for particles and must
@@ -775,6 +806,7 @@ contains
           zParticle = particlePosition(3)
 
           !!!!!!!!!! PASS PARTICLES FROM PROCESSOR TO PROCESSOR !!!!!!!!!!
+          ! note, assumes that integration above didn't move particle past halo
           !{{{
           ! 1. determine if iCell is on halo (just set each particle's currentBlock to the correct currentBlock
           ! 2. determine owning block in halo, update particle's currentBlock
@@ -2047,9 +2079,8 @@ contains
     call mpas_pool_get_config(meshPool, 'x_period', x_period)
     call mpas_pool_get_config(meshPool, 'y_period', y_period)
 
-    ! allocations for particular cell !{{{
+    ! allocations for particular cell
     allocate(vertCoords(3,nCellVertices), uvCell(3,nCellVertices), areaB(nCellVertices))
-    !}}}
 
     ! get horizontal vertex locations (noting that there may be a
     ! bit of error because the particle could be at the top
@@ -2763,7 +2794,7 @@ contains
          alpha = (zSubStep - zTop(iLevel))/(zTop(iLevel+1)- zTop(iLevel))
 #ifdef MPAS_DEBUG
        else
-         call mpas_log_write( 'Error with vertical velocity interpolation!')
+         call mpas_log_write( 'Error with vertical velocity interpolation!', MPAS_LOG_CRIT)
 #endif
        end if
        interp_vert_velocity_to_zlevel = alpha * vertVelocityTop(iLevel)+ (1.0_RKIND - alpha) * vertVelocityTop(iLevel+1)
