@@ -731,12 +731,10 @@ contains
           ! check and verify that free floating particle hasn't gone out of boundary
           if (iLevel <= 0 .or. zLevelParticle > bottomDepth(iCell) .or. -zLevelParticle > ssh(iCell)) then
             if (iLevel == 0) then
-              call mpas_log_write(' Warning: Particle location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), &
-                messageType=MPAS_LOG)
+              call mpas_log_write(' Warning: Particle location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /))
             end if
             if (iLevel == -1) then
-              call mpas_log_write(' Warning: Particle location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), &
-                messageType=MPAS_LOG)
+              call mpas_log_write(' Warning: Particle location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /))
             end if
             ! verify that it is less than SSH and greater than bottomDepth
             if (zLevelParticle > bottomDepth(iCell)) then
@@ -2673,7 +2671,7 @@ contains
      ! check to make sure points are in range
      ! optimization point: smarter algorithm won't have to call this ever
      if(.not.((phiInterp <= phiVals(iHigh)) .and. (phiInterp >= phiVals(iLow)))) then
-       !call mpas_log_write( 'fast interpolation failed, trying general, brute force search for interpolation bounds')
+       call mpas_log_write( 'Warning: fast interpolation failed, trying general, brute force search for interpolation bounds')
        !print *,  'iLow = ', iLow, ' iHigh = ', iHigh
        !print *,  'phiInterp = ', phiInterp , ' phiLow =',  phiVals(iLow), ' phiHigh = ', phiVals(iHigh)
        call get_bounding_indices_brute_force(nVertLevels, phiInterp, phiVals, iLow, iHigh)
