@@ -1198,8 +1198,8 @@ module mpas_geometry_utils
 
       implicit none
       ! in / out variables
-      integer :: mpas_get_vertical_id ! index of vertical level
-      real (kind=RKIND), intent(in) :: zLoc                 ! z-level location of point
+      integer :: mpas_get_vertical_id                          ! index of vertical level
+      real (kind=RKIND), intent(in) :: zLoc                    ! z-level location of point
       integer, intent(in) :: nLevels                           ! number of vertical levels
       real (kind=RKIND), dimension(:), intent(in) :: zMid      ! elevation of cell centers
 
