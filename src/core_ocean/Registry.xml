@@ -2275,7 +2275,11 @@
 			 description="horizontal velocity used to transport mass and tracers"
 			 packages="forwardMode;analysisMode"
 		/>
-		<var name="wettingVelocity" type="real" dimensions="nVertLevels nEdges Time" units="m^{2} s^{-1}"
+		<var name="barotropicWettingVelocity" type="real" dimensions="nEdges Time" units="m s^{-1}"
+			 description="Barotropic velocity to prevent drying of column."
+			 packages="forwardMode"
+		/>
+		<var name="wettingVelocity" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
 			 description="Velocity to prevent drying of cell."
 			 packages="forwardMode"
 		/>

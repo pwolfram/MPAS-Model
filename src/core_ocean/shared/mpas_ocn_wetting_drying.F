@@ -47,7 +47,8 @@ module ocn_wetting_drying
    !
    !--------------------------------------------------------------------
 
-   public :: ocn_wetting_drying_verify, ocn_prevent_drying
+   public :: ocn_wetting_drying_verify, ocn_prevent_drying_rk4, &
+     ocn_prevent_drying_split_explicit
 
    !--------------------------------------------------------------------
    !
@@ -73,7 +74,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_wetting_drying_verify( block , minHeight, dt, err)!{{{
+   subroutine ocn_wetting_drying_verify( block , minHeight, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -83,7 +84,6 @@ contains
 
       type (block_type), intent(in) :: block !< block for computation
       real (kind=RKIND), intent(in) :: minHeight
-      real (kind=RKIND), intent(in) :: dt !< Input: timestep
 
       !-----------------------------------------------------------------
       !
@@ -107,6 +107,7 @@ contains
 
       type (mpas_pool_type), pointer :: statePool, meshPool, tendPool
       integer, dimension(:), pointer :: maxLevelCell
+      real (kind=RKIND), dimension(:), pointer :: sshSubcycleNew, bottomDepth
       integer, pointer :: nCellsSolve
       integer :: iCell, k
       integer :: debugUnit
@@ -129,6 +130,8 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
+      call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, 2)
+      call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
 
       err = 0
 
@@ -138,11 +141,9 @@ contains
       minThickness = +1.0E34
       do iCell = 1, nCellsSolve
         do k = 1, maxLevelCell(iCell)
-          ! this is artificially too restrictive, could have wetting and then drying over RK substeps, which could indicate
-          ! drying when there is no drying occuring
-          !layerThick = layerThicknessCur(k, iCell) + dt*layerThicknessTend(k, iCell)
           !call mpas_log_write( 'Layer thickness = $r', realArgs=(/ layerThick/))
-          layerThick = layerThicknessNew(k, iCell)
+          ! use ssh as a proxy too for baroclinic mode
+          layerThick = min(layerThicknessNew(k, iCell), (sshSubcycleNew(iCell)+bottomDepth(iCell))/maxLevelCell(iCell))
           minThickness = min(minThickness, layerThick)
           if ( layerThick <  minHeight ) then
             ! report error if layerThickness constraint is violated
@@ -174,9 +175,171 @@ contains
 
    end subroutine ocn_wetting_drying_verify !}}}
 
+
 !***********************************************************************
 !
-!  routine ocn_prevent_drying
+!  routine ocn_prevent_drying_split_explicit
+!
+!> \brief   Prevents velocity tendency from causing cell drying
+!> \author  Phillip J. Wolfram
+!> \date    05/01/2018
+!> \details
+!>  This routine modifies velocity tendency to prevent cell drying.
+!
+!-----------------------------------------------------------------------
+   subroutine ocn_prevent_drying_split_explicit(meshPool, barotropicWettingVelocity, &
+       dt, nBtrSubcycles, normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew, &
+       sshSubcycleCur, config_btr_gam1_velWt1, config_zero_drying_velocity, err) !{{{
+
+     !-----------------------------------------------------------------
+     !
+     ! input variables
+     !
+     !-----------------------------------------------------------------
+
+     type (mpas_pool_type), pointer, intent(in) :: meshPool
+     real (kind=RKIND), intent(in) :: dt
+     integer, intent(in) :: nBtrSubcycles
+     real (kind=RKIND), dimension(:), intent(in) :: normalBarotropicVelocitySubcycleCur, &
+                                                    normalBarotropicVelocitySubcycleNew
+     real (kind=RKIND), intent(in) :: config_btr_gam1_velWt1
+     real (kind=RKIND), dimension(:), intent(in) :: sshSubcycleCur
+     logical, intent(in) :: config_zero_drying_velocity
+
+     !-----------------------------------------------------------------
+     !
+     ! input/output variables
+     !
+     !-----------------------------------------------------------------
+     real (kind=RKIND), dimension(:), intent(inout) :: barotropicWettingVelocity
+
+     !-----------------------------------------------------------------
+     !
+     ! output variables
+     !
+     !-----------------------------------------------------------------
+
+     integer, intent(out) :: err !< Output: error flag
+
+     !-----------------------------------------------------------------
+     !
+     ! local variables
+     !
+     !-----------------------------------------------------------------
+     integer, dimension(:,:), pointer :: edgesOnCell, cellsOnEdge, edgeSignOnCell
+     real (kind=RKIND), dimension(:), pointer :: dvEdgea, areaCell, dvEdge, bottomDepth
+     integer, dimension(:), pointer :: nCellsArray, nEdgesOnCell, maxLevelCell
+     real (kind=RKIND), pointer :: config_drying_min_cell_height
+
+     real (kind=RKIND) :: invAreaCell, divOutFlux, edgeVel, sshEdge, layerThickness, thicknessSum
+     integer :: nCells
+
+     integer :: i, iEdge, iCell, cell1, cell2
+
+     err = 0
+
+     call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
+
+     call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+     call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
+     call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+     call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
+     call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+     call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+     call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
+     call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
+     call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
+
+     ! Only need to compute over 0 and 1 halos
+     nCells = nCellsArray( 1 )
+
+     call mpas_threading_barrier()
+
+     call mpas_log_write('IN WETTING AND DRYING BAROTROPIC $i', intArgs=(/nCells/))
+
+     ! need predicted transport velocity to limit drying flux
+     ! !$omp do schedule(runtime) private(invAreaCell, i, iEdge, k)
+     do iCell = 1, nCells
+       invAreaCell = 1.0_RKIND / areaCell(iCell)
+       ! can switch with maxLevelEdgeBot(iEdge)
+       divOutFlux = 0.0_RKIND
+       !layerThickness = layerThicknessCur(k, iCell)
+       !layerThickness = layerThicknessProvis(k, iCell)
+       !layerThickness = min(layerThicknessProvis(k, iCell), layerThicknessCur(k, iCell))
+       layerThickness = sshSubcycleCur(iCell) + bottomDepth(iCell)
+       !call mpas_log_write('prov = $r, curr=$r', realArgs=(/ layerThicknessProvis(k,iCell), layerThicknessCur(k,iCell)/))
+       !layerThickness = layerThicknessCur(k, iCell)
+       do i = 1, nEdgesOnCell(iCell)
+         iEdge = edgesOnCell(i, iCell)
+
+         cell1 = cellsOnEdge(1, iEdge)
+         cell2 = cellsOnEdge(2, iEdge)
+
+         sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2) )
+
+         ! method 0: orig, works only without pbc:
+         !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
+
+         ! method 1, matches method 0 without pbcs, works with pbcs.
+         thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
+
+         ! method 2: may be better than method 1.
+         ! Take average  of full thickness at two neighboring cells.
+         !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
+
+         ! normal edge velocity
+         edgeVel = (1.0_RKIND-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
+           + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
+
+         ! only consider divergence flux leaving the cell
+         !call mpas_log_write('u = $r, sign=$i', realArgs=(/ normalVelocity(k,iEdge)/), intArgs=(/edgesSignOnCell(i,iCell)/))
+         if ( edgeVel * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
+           !call mpas_log_write('LIMIT FLUX1')
+           ! potential problem here, if we have large flux out of one face but small out of the other, small flux could get
+           ! lost due to truncation error
+           divOutFlux = divOutFlux - edgeVel * edgeSignOnCell(i, iCell) &
+             * thicknessSum * dvEdge(iEdge)  * invAreaCell
+         end if
+       end do
+       !call mpas_log_write('divOutFlux= $r, layerThickness = $r, dt= $r, edgevel= $r', realArgs=(/divOutFlux, layerThickness, dt, edgeVel/))
+
+       divOutFlux = abs(divOutFlux)
+       ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
+       if ((layerThickness - (divOutFlux*dt)/nBtrSubcycles) <= (config_drying_min_cell_height*maxLevelCell(iCell)))  then
+         call mpas_log_write('LIMIT FLUX for h = $r div = $r dt = $r cellheight = $r ', realArgs=(/layerThickness, divOutFlux, dt, config_drying_min_cell_height/))
+         call mpas_log_write('LIMIT FLUX for cell= $i n= $i maxlevel=$i', intArgs=(/iCell, nBtrSubcycles, maxLevelCell(iCell)/))
+         ! limit divOutFlux out of cell to keep it wet
+         divOutFlux = (layerThickness - (config_drying_min_cell_height*maxLevelCell(iCell) + eps)) / ((divOutFlux*dt)/nBtrSubcycles + eps)
+
+         do i = 1, nEdgesOnCell(iCell)
+           iEdge = edgesOnCell(i, iCell)
+
+           ! normal edge velocity
+           edgeVel = (1.0_RKIND-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
+             + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
+
+           if ( edgeVel * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
+             ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
+             !call mpas_log_write('theta = $r, $r', realArgs=(/ divOutFlux, min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND) /))
+             ! square the fractional term to make values near zero go to zero much quicker (to prevent threshold from being hit)
+             !barotropicWettingVelocity(iEdge) =  - (min(max(0.0_RKIND, 1.0_RKIND - (divOutFlux*divOutFlux)), 1.0_RKIND)) * edgeVel
+             ! just completely remove the velocity
+             barotropicWettingVelocity(iEdge) =  - edgeVel
+           end if
+         end do
+       end if
+
+     end do
+     !! !$omp end do
+
+     call mpas_threading_barrier()
+     call mpas_log_write('OUT OF WETTING AND DRYING BAROTROPIC')
+
+   end subroutine ocn_prevent_drying_split_explicit !}}}
+
+!***********************************************************************
+!
+!  routine ocn_prevent_drying_rk4
 !
 !> \brief   Prevents velocity tendency from causing cell drying
 !> \author  Phillip J. Wolfram
@@ -185,7 +348,7 @@ contains
 !>  This routine modifies velocity tendency to prevent cell drying.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_prevent_drying(block, dt, rkWeight, config_zero_drying_velocity, err) !{{{
+   subroutine ocn_prevent_drying_rk4(block, dt, rkWeight, config_zero_drying_velocity, err) !{{{
 
      !-----------------------------------------------------------------
      !
@@ -256,7 +419,7 @@ contains
      !$omp end do
      call mpas_threading_barrier()
 
-     ! need estimate of tendency in order to 
+     ! need estimate of tendency in order to
      !call ocn_time_integrator_rk4_compute_thick_tends( block, dt, rk_substep_weights(rk_step), err )
 
      ! ensure cells stay wet by selectively damping cells with a damping tendency to make sure tendency doesn't dry cells
@@ -292,7 +455,7 @@ contains
      !$omp end do
      call mpas_threading_barrier()
 
-   end subroutine ocn_prevent_drying !}}}
+   end subroutine ocn_prevent_drying_rk4 !}}}
 
 !***********************************************************************
 !
@@ -388,10 +551,9 @@ contains
 
       call mpas_threading_barrier()
 
-      !call mpas_log_write('IN WETTING AND DRYING $i', intArgs=(/nCells/))
+      !call mpas_log_write('IN WETTING AND DRYING LAYER $i', intArgs=(/nCells/))
 
       ! need predicted transport velocity to limit drying flux
-
       !! !$omp do schedule(runtime) private(invAreaCell, i, iEdge, k)
       do iCell = 1, nCells
         invAreaCell = 1.0_RKIND / areaCell(iCell)
@@ -446,7 +608,7 @@ contains
       !! !$omp end do
 
       call mpas_threading_barrier()
-      !call mpas_log_write('OUT OF WETTING AND DRYING')
+      !call mpas_log_write('OUT OF WETTING AND DRYING LAYER')
 
    end subroutine ocn_wetting_drying_wettingVelocity !}}}
 
