@@ -937,7 +937,7 @@ module ocn_time_integration_split
                      end if
                     else if (.not. config_use_wetting_drying .or. &
                         (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
-                          ! use method 1 below
+                          ! use method 1 below (same method as before)
                           thicknessSum = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2) ) + min(bottomDepth(cell1), bottomDepth(cell2))
                     else
                       ! ERROR for log
