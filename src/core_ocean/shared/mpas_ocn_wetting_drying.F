@@ -259,7 +259,7 @@ contains
 
      call mpas_threading_barrier()
 
-     call mpas_log_write('IN WETTING AND DRYING BAROTROPIC $i', intArgs=(/nCells/))
+     !call mpas_log_write('IN WETTING AND DRYING BAROTROPIC $i', intArgs=(/nCells/))
 
      ! need predicted transport velocity to limit drying flux
      ! !$omp do schedule(runtime) private(invAreaCell, i, iEdge, k)
@@ -359,7 +359,7 @@ contains
      !! !$omp end do
 
      call mpas_threading_barrier()
-     call mpas_log_write('OUT OF WETTING AND DRYING BAROTROPIC')
+     !call mpas_log_write('OUT OF WETTING AND DRYING BAROTROPIC')
 
    end subroutine ocn_prevent_drying_split_explicit !}}}
 
