@@ -30,6 +30,7 @@ module ocn_forward_mode
    use mpas_log
    use mpas_decomp
    use mpas_log
+   use mpas_io_units
 
    use ocn_analysis_driver
    use ocn_init_routines
@@ -78,6 +79,7 @@ module ocn_forward_mode
    use ocn_sea_ice
 
    use ocn_constants
+   use ocn_wetting_drying
 
    implicit none
    private
@@ -126,9 +128,11 @@ module ocn_forward_mode
       logical, pointer :: config_do_restart, config_read_nearest_restart, config_filter_btr_mode, config_conduct_tests
       character (len=StrKIND), pointer :: config_vert_coord_movement, config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_surface_salinity_monthly_restoring_compute_interval
+      character (len=StrKIND), pointer :: config_debug_split_explicit_filename
 
       real (kind=RKIND), pointer :: config_maxMeshDensity
       logical, pointer :: config_use_surface_salinity_monthly_restoring
+      logical, pointer :: config_debug_split_explicit
       ierr = 0
 
       !
@@ -152,6 +156,8 @@ module ocn_forward_mode
                                 config_use_surface_salinity_monthly_restoring)
       call mpas_pool_get_config(domain % configs, 'config_surface_salinity_monthly_restoring_compute_interval', &
               config_surface_salinity_monthly_restoring_compute_interval)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit_filename', config_debug_split_explicit_filename)
       !
       ! Read input data for model
       !
@@ -371,6 +377,15 @@ module ocn_forward_mode
       call mpas_reset_clock_alarm(domain % clock, 'salinityDataReadAlarm', ierr=err_tmp)
 
       endif
+
+
+      if (config_debug_split_explicit) then
+        ! open up temp file
+        call mpas_new_unit(debugSplitExplicitUnit)
+        ! note, presumes we are running on a single core here...
+        open(unit=debugSplitExplicitUnit, file=trim(config_debug_split_explicit_filename), &
+          action='write', status='unknown')
+      end if
 
    end function ocn_forward_mode_init!}}}
 
@@ -691,6 +706,7 @@ module ocn_forward_mode
    function ocn_forward_mode_finalize(domain) result(iErr)!{{{
 
       type (domain_type), intent(inout) :: domain
+      logical, pointer :: config_debug_split_explicit
 
       integer :: ierr
 
@@ -699,6 +715,15 @@ module ocn_forward_mode
       call mpas_destroy_clock(domain % clock, ierr)
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
+
+      if (config_debug_split_explicit) then
+        ! close file
+        flush(debugSplitExplicitUnit)
+        close(debugSplitExplicitUnit)
+        call mpas_release_unit(debugSplitExplicitUnit)
+      end if
+
 
    end function ocn_forward_mode_finalize!}}}
 

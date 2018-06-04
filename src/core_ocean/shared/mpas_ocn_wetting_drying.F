@@ -48,7 +48,10 @@ module ocn_wetting_drying
    !--------------------------------------------------------------------
 
    public :: ocn_wetting_drying_verify, ocn_prevent_drying_rk4, &
-     ocn_prevent_drying_split_explicit
+     ocn_prevent_drying_split_explicit, &
+     ocn_wetting_drying_compute_barotropic_thickness_flux
+
+   integer, public :: debugSplitExplicitUnit=10
 
    !--------------------------------------------------------------------
    !
@@ -211,7 +214,7 @@ contains
      ! input/output variables
      !
      !-----------------------------------------------------------------
-     real (kind=RKIND), dimension(:), intent(inout) :: barotropicWettingVelocity
+     real (kind=RKIND), dimension(:), pointer, intent(out) :: barotropicWettingVelocity
 
      !-----------------------------------------------------------------
      !
@@ -227,14 +230,15 @@ contains
      !
      !-----------------------------------------------------------------
      integer, dimension(:,:), pointer :: edgesOnCell, cellsOnEdge, edgeSignOnCell
-     real (kind=RKIND), dimension(:), pointer :: dvEdgea, areaCell, dvEdge, bottomDepth
-     integer, dimension(:), pointer :: nCellsArray, nEdgesOnCell, maxLevelCell
+     real (kind=RKIND), dimension(:), pointer :: areaCell, dvEdge, bottomDepth
+     integer, dimension(:), pointer :: nCellsArray, nEdgesArray, nEdgesOnCell, maxLevelCell
      real (kind=RKIND), pointer :: config_drying_min_cell_height
-
-     real (kind=RKIND) :: invAreaCell, divOutFlux, edgeVel, sshEdge, layerThickness, thicknessSum!, bottomDepthMin
-     integer :: nCells
-     character (len=StrKIND), pointer :: config_thickness_flux_type
      logical, pointer :: config_use_wetting_drying
+
+     real (kind=RKIND) :: invAreaCell, divOutFlux, edgeVel, layerThickness, thicknessSum !, bottomDepthMin
+     integer :: nCells, nEdges
+     character (len=StrKIND), pointer :: config_thickness_flux_type
+     logical :: testSetVelocity
 
      integer :: i, iEdge, iCell, cell1, cell2
 
@@ -253,16 +257,24 @@ contains
      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
+     call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
 
      ! Only need to compute over 0 and 1 halos
      nCells = nCellsArray( 1 )
+     nEdges = nEdgesArray( 1 )
 
-     call mpas_threading_barrier()
+     !call mpas_threading_barrier()
+
+     !do iEdge = 1, nEdges
+     !  barotropicWettingVelocity(iEdge) = 0.0_RKIND
+     !end do
+     barotropicWettingVelocity = 0.0_RKIND
+     !return
 
      !call mpas_log_write('IN WETTING AND DRYING BAROTROPIC $i', intArgs=(/nCells/))
 
+     testSetVelocity = .false.
      ! need predicted transport velocity to limit drying flux
-     ! !$omp do schedule(runtime) private(invAreaCell, i, iEdge, k)
      do iCell = 1, nCells
        invAreaCell = 1.0_RKIND / areaCell(iCell)
        ! can switch with maxLevelEdgeBot(iEdge)
@@ -270,7 +282,7 @@ contains
        !bottomDepthMin = +1E34
        do i = 1, nEdgesOnCell(iCell)
          iEdge = edgesOnCell(i, iCell)
-         
+
          ! normal edge velocity
          edgeVel = (1.0_RKIND-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
@@ -278,40 +290,11 @@ contains
          cell1 = cellsOnEdge(1, iEdge)
          cell2 = cellsOnEdge(2, iEdge)
 
-         if (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .ne. 'centered')) then
-           if ( trim(config_thickness_flux_type) .eq. 'upwind') then
-             if (edgeVel > 0.0_RKIND) then 
-               thicknessSum = sshSubcycleCur(cell1) + bottomDepth(cell1)
-             elseif (edgeVel < 0.0_RKIND) then
-               thicknessSum = sshSubcycleCur(cell2) + bottomDepth(cell2)
-             else
-                thicknessSum = min(sshSubcycleCur(cell1) + bottomDepth(cell1), sshSubcycleCur(cell2) + bottomDepth(cell2) )
-             end if
-           else
-           end if
-          else if (.not. config_use_wetting_drying .or. &
-              (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
-                ! use method 1 below
-                thicknessSum = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2) ) + min(bottomDepth(cell1), bottomDepth(cell2))
-          else
-            ! ERROR for log
-            call mpas_log_write('Edge thickness flux option of ' // trim(config_thickness_flux_type) // 'is not known', MPAS_LOG_CRIT)
-          end if
-
-         ! method 0: orig, works only without pbc:
-         !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
-
-         ! method 1, matches method 0 without pbcs, works with pbcs.
-         !thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-         ! can't let thickness flux become zero
-         !bottomDepthMin = min(bottomDepthMin, min(bottomDepth(cell1), bottomDepth(cell2)))
-
-         ! method 2: may be better than method 1.
-         ! Take average  of full thickness at two neighboring cells.
-         !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
+         call ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+           edgeVel, sshSubcycleCur(cell1), sshSubcycleCur(cell2), bottomDepth(cell1), bottomDepth(cell2), &
+           config_use_wetting_drying, config_thickness_flux_type)
 
          ! only consider divergence flux leaving the cell
-         !call mpas_log_write('u = $r, sign=$i', realArgs=(/ normalVelocity(k,iEdge)/), intArgs=(/edgesSignOnCell(i,iCell)/))
          if ( edgeVel * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
            !call mpas_log_write('LIMIT FLUX1')
            ! potential problem here, if we have large flux out of one face but small out of the other, small flux could get
@@ -320,18 +303,16 @@ contains
              * thicknessSum * dvEdge(iEdge)  * invAreaCell
          end if
        end do
-       
+
        layerThickness = sshSubcycleCur(iCell) + bottomDepth(iCell)
 
        ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
        if ((layerThickness + (divOutFlux*dt)/nBtrSubcycles) <= (config_drying_min_cell_height*maxLevelCell(iCell)))  then
-         !if (iCell == 20) then
-         !  call mpas_log_write('correct $i $i h = $r div = $r dt = $r cellheight = $r ', realArgs=(/layerThickness, divOutFlux, dt, config_drying_min_cell_height/), intArgs=(/iCell, maxLevelCell(iCell)/))
-         !end if
-         
+         !call mpas_log_write('correct $i $i h = $r div = $r dt = $r cellheight = $r ', realArgs=(/layerThickness, divOutFlux, dt, config_drying_min_cell_height/), intArgs=(/iCell, maxLevelCell(iCell)/))
+
          ! limit divOutFlux out of cell to keep it wet
          divOutFlux = abs(divOutFlux)
-         divOutFlux = (layerThickness - (config_drying_min_cell_height*maxLevelCell(iCell) + eps)) / ((divOutFlux*dt)/nBtrSubcycles + eps)
+         divOutFlux = (layerThickness - (config_drying_min_cell_height*maxLevelCell(iCell))) / ((divOutFlux*dt)/nBtrSubcycles + eps)
 
          do i = 1, nEdgesOnCell(iCell)
            iEdge = edgesOnCell(i, iCell)
@@ -341,6 +322,7 @@ contains
              + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
 
            if ( edgeVel * edgeSignOnCell(i, iCell) < 0.0_RKIND ) then
+             !call mpas_log_write('LIMIT FLUX2')
              ! each outgoing velocity is penalized (but not the incoming, wetting velocities)
              !call mpas_log_write('theta = $r, $r', realArgs=(/ divOutFlux, min(max(0.0_RKIND, 1.0_RKIND - divOutFlux), 1.0_RKIND) /))
              ! square the fractional term to make values near zero go to zero much quicker (to prevent threshold from being hit)
@@ -351,15 +333,18 @@ contains
                barotropicWettingVelocity(iEdge) = - edgeVel
              end if
              !barotropicWettingVelocity(iEdge) = 0.0_RKIND
+             testSetVelocity = .true.
            end if
          end do
        end if
 
      end do
-     !! !$omp end do
 
-     call mpas_threading_barrier()
+     !! call mpas_threading_barrier()
      !call mpas_log_write('OUT OF WETTING AND DRYING BAROTROPIC')
+     !barotropicWettingVelocity = 0.0_RKIND
+     !write(*,"(ES32.16, ES32.16, L)") maxval(barotropicWettingVelocity), minval(barotropicWettingVelocity), testSetVelocity
+     return
 
    end subroutine ocn_prevent_drying_split_explicit !}}}
 
@@ -548,8 +533,7 @@ contains
       integer :: iEdge, iCell, k, i, nCells
       integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray
-      integer, dimension(:), pointer :: nEdgesOnCell, nEdgesOnEdge, &
-        maxLevelCell, maxLevelEdgeBot
+      integer, dimension(:), pointer :: nEdgesOnCell, maxLevelCell, maxLevelEdgeBot
       integer, dimension(:,:), pointer :: edgesOnCell, edgeSignOnCell
 
       real (kind=RKIND) :: divOutFlux, invAreaCell, layerThickness
@@ -600,18 +584,18 @@ contains
                 !call mpas_log_write('LIMIT FLUX1')
                 ! potential problem here, if we have large flux out of one face but small out of the other, small flux could get
                 ! lost due to truncation error
-                divOutFlux = divOutFlux - normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) &
+                divOutFlux = divOutFlux + normalVelocity(k, iEdge) * edgeSignOnCell(i, iCell) &
                   * layerThicknessEdge(k, iEdge) * dvEdge(iEdge)  * invAreaCell
               end if
             end if
           end do
           !call mpas_log_write('divOutFlux= $r, layerThickness = $r, dt= $r', realArgs=(/divOutFlux, layerThickness(k, iCell), dt/))
 
-          divOutFlux = abs(divOutFlux)
           ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
-          if ((layerThickness - dt*divOutFlux ) <= (config_drying_min_cell_height))  then
+          if ((layerThickness + dt*divOutFlux ) <= (config_drying_min_cell_height))  then
             !call mpas_log_write('LIMIT FLUX')
             ! limit divOutFlux out of cell to keep it wet
+            divOutFlux = abs(divOutFlux)
             divOutFlux = (layerThickness - (config_drying_min_cell_height + eps)) / (dt*divOutFlux + eps)
 
             do i = 1, nEdgesOnCell(iCell)
@@ -637,6 +621,81 @@ contains
       !call mpas_log_write('OUT OF WETTING AND DRYING LAYER')
 
    end subroutine ocn_wetting_drying_wettingVelocity !}}}
+
+!***********************************************************************
+!
+!  routine ocn_wetting_drying_compute_barotropic_thickness_flux
+!
+!> \brief   Computes thickness flux appropriate for wetting and drying
+!> \author  Phillip J. Wolfram
+!> \date    05/23/2018
+!> \details
+!>  This routine computes the thickness flux used to determine edge-based
+!>  barotropic water depth thickness.
+!
+!-----------------------------------------------------------------------
+   subroutine ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+       flux, sshCell1, sshCell2, bottomCell1, bottomCell2, &
+       config_use_wetting_drying, config_thickness_flux_type) !{{{
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), intent(in) :: sshCell1
+      real (kind=RKIND), intent(in) :: sshCell2
+      real (kind=RKIND), intent(in) :: bottomCell1
+      real (kind=RKIND), intent(in) :: bottomCell2
+      real (kind=RKIND), intent(in) :: flux
+      logical, intent(in) :: config_use_wetting_drying
+      character (len=StrKIND), intent(in) :: config_thickness_flux_type
+
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), intent(out) :: thicknessSum
+
+
+     if (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .ne. 'centered')) then
+       if ( trim(config_thickness_flux_type) .eq. 'upwind') then
+         if (flux > 0.0_RKIND) then
+           thicknessSum = sshCell1 + bottomCell1
+         elseif (flux < 0.0_RKIND) then
+           thicknessSum = sshCell2 + bottomCell2
+         else
+           thicknessSum = min(sshCell1 + bottomCell1, sshCell2 + bottomCell2)
+         end if
+       else
+         thicknessSum = min(sshCell1 + bottomCell1, sshCell2 + bottomCell2)
+       end if
+     else if (.not. config_use_wetting_drying .or. &
+     (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
+     ! use method 1 below (same method as before)
+     thicknessSum = 0.5_RKIND * (sshCell1 + sshCell2) + min(bottomCell1, bottomCell2)
+   else
+     ! ERROR for log
+     call mpas_log_write('Edge thickness flux option of ' // trim(config_thickness_flux_type) // 'is not known', MPAS_LOG_CRIT)
+   end if
+
+   ! original method prior to upwinding needed to accomodate wetting / drying
+   !sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))
+
+   ! method 0: orig, works only without pbc:
+   !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
+
+   ! method 1, matches method 0 without pbcs, works with pbcs.
+   !thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
+
+   ! method 2: may be better than method 1.
+   ! Take average  of full thickness at two neighboring cells.
+   !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
+
+   end subroutine ocn_wetting_drying_compute_barotropic_thickness_flux !}}}
 
 end module ocn_wetting_drying
 
