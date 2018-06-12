@@ -117,6 +117,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessNew, layerThicknessTend
       real (kind=RKIND) :: minThickness, layerThick
       character (len=StrKIND) :: debugFilename
+      character (len=StrKIND), pointer :: config_time_integrator
 
       !-----------------------------------------------------------------
       !
@@ -135,6 +136,7 @@ contains
       call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
       call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, 2)
       call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+      call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
 
       err = 0
 
@@ -146,7 +148,11 @@ contains
         do k = 1, maxLevelCell(iCell)
           !call mpas_log_write( 'Layer thickness = $r', realArgs=(/ layerThick/))
           ! use ssh as a proxy too for baroclinic mode
-          layerThick = min(layerThicknessNew(k, iCell), (sshSubcycleNew(iCell)+bottomDepth(iCell))/maxLevelCell(iCell))
+          if (trim(config_time_integrator) == 'split_explicit') then
+            layerThick = min(layerThicknessNew(k, iCell), (sshSubcycleNew(iCell)+bottomDepth(iCell))/maxLevelCell(iCell))
+          else
+            layerThick = layerThicknessNew(k, iCell)
+          end if
           minThickness = min(minThickness, layerThick)
           if ( layerThick <  minHeight ) then
             ! report error if layerThickness constraint is violated
