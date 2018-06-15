@@ -1216,10 +1216,12 @@ module mpas_geometry_utils
          end if
       end do
 
+      ! should be refractored to have 1 here as index
       if(zLoc < minval(zMid(1:nLevels))) then
          ! case where location is smallest value
          mpas_get_vertical_id = -1
          return
+      ! should be refractored to have nLevels here as index
       else if (zLoc > maxval(zMid(1:nLevels))) then
          ! case where location is largest value
          mpas_get_vertical_id = 0
