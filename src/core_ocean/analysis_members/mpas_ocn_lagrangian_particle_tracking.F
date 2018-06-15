@@ -721,6 +721,11 @@ contains
 #ifdef MPAS_DEBUG
             call mpas_timer_start("mpas_get_vertical_idLPT")
 #endif
+            if (verticalTreatment == 3) then !('passiveFloat')
+              ! constrain vertical level to be within dz/2 of ssh or bottom depth
+              zLevelParticle = min(max(zMid(maxLevelCell(iCell),iCell), zLevelParticle), zMid(1,iCell))
+              call mpas_log_write('fixing passiveFloats!')
+            end if
             iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
 #ifdef MPAS_DEBUG
             call mpas_timer_stop("mpas_get_vertical_idLPT")
