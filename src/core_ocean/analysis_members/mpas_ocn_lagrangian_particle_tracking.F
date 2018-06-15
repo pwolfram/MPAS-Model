@@ -745,10 +745,10 @@ contains
           end if
           ! verify that it is less than SSH and greater than bottomDepth
           if (zLevelParticle + bottomDepth(iCell) < eps) then
-            call mpas_log_write(' Error: Particle $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, -bottomDepth(iCell) /), intArgs=(/iCell/),&
+            call mpas_log_write(' Error: $i ($i) Particle of type $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, -bottomDepth(iCell) /), intArgs=(/iCell, indexToParticleID, verticalTreatment/),&
               messageType=MPAS_LOG_ERR)
            end if
-          if (zLevelParticle - ssh(iCell) > eps) then
+           if (zLevelParticle - ssh(iCell) > eps) then
             call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/),&
               messageType=MPAS_LOG_ERR)
            end if
@@ -1942,7 +1942,7 @@ contains
 
          !! ensure that the boundary condition is enforced
          !call zero_boundary_nodal_values(nCellVertices, verticesOnCell, &
-         !  boundaryVertex, uvUcell, uvVcell, uvWcell)
+         !  boundaryVertex, uvCell)
 
          ! no vertical motion, just horizontal motion
          return
@@ -1957,7 +1957,7 @@ contains
 
          !! ensure that there is zero nodal velocity on the boundary
          !call zero_boundary_nodal_values(nCellVertices, verticesOnCell, &
-         !  boundaryVertex, uvUcell, uvVcell, uvWcell)
+         !  boundaryVertex, uvCell)
 
          ! no vertical motion, just horizontal motion
          return
@@ -1972,11 +1972,11 @@ contains
          ! interpolate the horizontal velocity based on z-levels
          call interp_nodal_vectors(ncellvertices, verticesoncell, &
            ilevel, nVertLevels, zLoc, zmid, &
-           uvertexvelocity, vvertexvelocity, wvertexvelocity, uvCell)
+           uVertexVelocity, vVertexVelocity, wVertexVelocity, uvCell)
 
-         !! ensure that there is zero nodal velocity on the boundary
+         ! ensure that there is zero nodal velocity on the boundary
          !call zero_boundary_nodal_values(nCellVertices, verticesOnCell, &
-         !  boundaryVertex, uvUcell, uvVcell, uvWcell)
+         !  boundaryVertex, uvCell)
 
          return
          !}}}
@@ -1987,11 +1987,11 @@ contains
          ! interpolate the horizontal velocity
          call interp_nodal_vectors(ncellvertices, verticesoncell, &
            ilevel, nVertLevels, phiInterp, phiMid, &
-           uvertexvelocity, vvertexvelocity, wvertexvelocity, uvCell)
+           uVertexVelocity, vVertexVelocity, wVertexVelocity, uvCell)
 
          ! ensure that there is zero nodal velocity on the boundary
          !call zero_boundary_nodal_values(nCellVertices, verticesOnCell, &
-         !  boundaryVertex, uvUcell, uvVcell, uvWcell)
+         !  boundaryVertex, uvCell)
 
          ! no vertical motion, just horizontal motion
          return
@@ -2135,6 +2135,9 @@ contains
         uVertexVelocityArray, vVertexVelocityArray, wVertexVelocityArray, uvCell, boundaryVertex(iLevel,:), &
         iLevel, maxLevelCell(iCell), zSubStep, zMid(:,iCell), zTop(:,iCell), buoyancyInterp, buoyancy(:,iCell), &
         vertVelocityTop(:,iCell), verticalVelocityInterp)
+      !if (verticalTreatment == 3 .and. (iLevel == 0 .or. iLevel == -1)) then
+      !  write(*,*) ACHAR(10), ACHAR(10), iLevel, iCell, ACHAR(10), uvCell(1,:), ACHAR(10), uvCell(2,:),ACHAR(10), uvCell(3,:)
+      !end if
 
       ! vertical
       particleVelocityVert = particleVelocityVert + &
@@ -2551,16 +2554,16 @@ contains
          do aVertex = 1, nCellVertices
            theVertex = verticesOnCell(aVertex)
            !print *, maxloc(phiVals,1), phiVals(1:nVertLevels), uVertexVelocity(1:nVertLevels,theVertex)
-           uvCell(1,aVertex) = uVertexVelocity(maxloc(phiVals(1:nVertLevels),1), theVertex)
-           uvCell(2,aVertex) = vVertexVelocity(maxloc(phiVals(1:nVertLevels),1), theVertex)
-           uvCell(3,aVertex) = wVertexVelocity(maxloc(phiVals(1:nVertLevels),1), theVertex)
+           uvCell(1,aVertex) = uVertexVelocity(nVertLevels, theVertex)
+           uvCell(2,aVertex) = vVertexVelocity(nVertLevels, theVertex)
+           uvCell(3,aVertex) = wVertexVelocity(nVertLevels, theVertex)
          end do
        else if(iLevel == -1) then
          do aVertex = 1, nCellVertices
            theVertex = verticesOnCell(aVertex)
-           uvCell(1,aVertex) = uVertexVelocity(minloc(phiVals(1:nVertLevels),1), theVertex)
-           uvCell(2,aVertex) = vVertexVelocity(minloc(phiVals(1:nVertLevels),1), theVertex)
-           uvCell(3,aVertex) = wVertexVelocity(minloc(phiVals(1:nVertLevels),1), theVertex)
+           uvCell(1,aVertex) = uVertexVelocity(1, theVertex)
+           uvCell(2,aVertex) = vVertexVelocity(1, theVertex)
+           uvCell(3,aVertex) = wVertexVelocity(1, theVertex)
          end do
        end if
      else
@@ -2617,7 +2620,7 @@ contains
      !-----------------------------------------------------------------
      ! output variables
      !-----------------------------------------------------------------
-     real (kind=RKIND), dimension(:,:), intent(out) :: uvCell  !< components of vertex velocity (vertically selected)
+     real (kind=RKIND), dimension(:,:), intent(inout) :: uvCell  !< components of vertex velocity (vertically selected)
 
      !-----------------------------------------------------------------
      ! local variables
@@ -2629,9 +2632,9 @@ contains
        theVertex = verticesOnCell(aVertex)
        !print *, boundaryVertex(theVertex)
        ! make all the boundary values be zero to prevent particle from horizontally leaving cell
-       uvCell(1,aVertex) = uvCell(1,aVertex) * (1-boundaryVertex(theVertex))
-       uvCell(2,aVertex) = uvCell(2,aVertex) * (1-boundaryVertex(theVertex))
-       uvCell(3,aVertex) = uvCell(3,aVertex) * (1-boundaryVertex(theVertex))
+       uvCell(1,aVertex) = uvCell(1,aVertex) * (1.0_RKIND - boundaryVertex(theVertex))
+       uvCell(2,aVertex) = uvCell(2,aVertex) * (1.0_RKIND - boundaryVertex(theVertex))
+       uvCell(3,aVertex) = uvCell(3,aVertex) * (1.0_RKIND - boundaryVertex(theVertex))
      end do
 
    end subroutine zero_boundary_nodal_values!}}}
