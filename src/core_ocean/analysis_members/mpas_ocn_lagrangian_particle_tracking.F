@@ -2411,7 +2411,7 @@ contains
      real (kind=RKIND), dimension(:), intent(in) :: zVals             !< scalar values (x) on cell for interpolant
      integer, intent(in) :: iLevel                                    !< vertical level / cell of phiInterp
      integer, intent(in) :: nVertLevels                               !< number of vertical levels
-     real (kind=RKIND), intent(in) :: zInterp                       !< location to interpolate
+     real (kind=RKIND), intent(in) :: zInterp                         !< location to interpolate
      real (kind=RKIND), dimension(:), intent(in) :: phiVals           !< values at elevation of cell middle (where vertex
                                                                       !< velocities are defined)
 
