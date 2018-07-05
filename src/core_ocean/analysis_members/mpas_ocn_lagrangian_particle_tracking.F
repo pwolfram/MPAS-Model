@@ -306,6 +306,15 @@ contains
       logical :: resetParticle, resetParticleAny
       integer :: err_tmp
 
+      % sampling variables
+      logical :: config_AM_lagrPartTrack_sample_temperature
+      real (kind=RKIND), pointer :: temperature
+      real (kind=RKIND), dimension(:,:), pointer  :: celltemperature
+
+      logical :: config_AM_lagrPartTrack_sample_salinity
+      real (kind=RKIND), pointer :: salinity
+      real (kind=RKIND), dimension(:,:), pointer  :: cellsalinity
+
       REAL (kind=RKIND), parameter :: eps=1e-12
 
 
@@ -381,6 +390,10 @@ contains
         ! potentially a costly function call, but ensures halos are ok
         !call mpas_dmpar_exch_halo_field(normalVelocity)
         call mpas_pool_get_field(statePool, 'layerThickness', layerThickness, timeLevel=timeLevel)
+
+        % sampling variables
+        call mpas_pool_get_array(statePool, 'temperature', celltemperature, timeLevel=timeLevel)
+        call mpas_pool_get_array(statePool, 'salinity', cellsalinity, timeLevel=timeLevel)
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
@@ -477,6 +490,9 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
           call mpas_pool_get_array(particle % haloDataPool, 'currentCell', iCell)
 
+          % sampling variables
+          call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'salinity', salinity)
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
@@ -764,6 +780,23 @@ contains
 #ifdef MPAS_DEBUG
           call mpas_timer_stop("verifyParticleDepthInDomainLPT")
 #endif
+
+           !! sampling setup (if needed)
+           !if (&
+           !  config_AM_lagrPartTrack_sample_temperature .or. &
+           !  config_AM_lagrPartTrack_sample_salinity) then
+
+           !end if
+
+           if (config_AM_lagrPartTrack_sample_temperature) then
+            call interp_cell_scalars(iLevel, maxLevelCell(iCell), zLevelParticle, zMid(:,iCell), &
+              celltemperature(:,iCell), temperature)
+           end if
+
+           if (config_AM_lagrPartTrack_sample_salinity) then
+            call interp_cell_scalars(iLevel, maxLevelCell(iCell), zLevelParticle, zMid(:,iCell), &
+              cellsalinity(:,iCell), salinity)
+           end if
 
 !          ! compute necessary information for autocorrelation !{{{
 !          ! get the updated velocity

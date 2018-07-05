@@ -55,6 +55,14 @@
 			description="Specify whether particles should be reset when they enter the resetInsideRegionMaskValue1 mask."
 			possible_values=".false. or .true."
 		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_temperature" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample temperature."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_salinity" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample salinity."
+			possible_values=".true. or .false."
+		/>
 	</nml_record>
 
 	<dims>
@@ -306,6 +314,13 @@
 		/>
 		<var name="transfered" type ="integer" dimensions="nParticles Time" units="unitless"
 			 description="flag to monitor if the particle was transfered"
+		/>
+<!-- TEMP FIELDS THAT NEED MOVED TO NonHalo below after verifying interpolation is correct -->
+		<var name="temperature" type="real" dimensions="nParticles Time" units="kg m^{-3}"
+			 description="sampled temperature for particle"
+		/>
+		<var name="salinity" type="real" dimensions="nParticles Time" units="kg m^{-3}"
+			 description="sampled salinity for particle"
 		/>
 	</var_struct>
 <!--
