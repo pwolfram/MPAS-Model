@@ -3,7 +3,7 @@
 File writes a particle input dataset for use in MPAS-O / E3SM.
 
 Phillip J. Wolfram
-Last Modified: 07/05/2018
+Last Modified: 07/12/2018
 """
 
 import netCDF4
@@ -23,36 +23,55 @@ def ensure_shape(start, new):
         new = new*np.ones_like(start)
     return new
 
+def southern_ocean_only_xyz(x, y, z, maxNorth=-45.0):
+    sq = np.sqrt(x**2 + y**2 + z**2)
+    lat = np.arcsin(z / sq)
+    #lon = np.arctan2(y, x)
+    ok = np.pi/180.0*maxNorth
+    ids = lat < ok
+    return ids
+
+def southern_ocean_only_planar(x, y, z, maxy=1000.0*1e3):
+    ids = y < maxy
+    return ids
+
 class Particles():
 
     def __init__(self, x, y, z, cellindices, verticaltreatment, dt=np.nan, zlevel=np.nan,
-            indexlevel=np.nan, buoypart=np.nan, buoysurf=None,
+            indexlevel=np.nan, buoypart=np.nan, buoysurf=None, spatialfilter=None,
             resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.verticaltreatment = ensure_shape(x, verticaltreatments[verticaltreatment])
-        self.nparticles = len(x)
+        if spatialfilter:
+            if spatialfilter == 'SouthernOceanXYZ':
+                ids = southern_ocean_only_xyz(x,y,z)
+            elif spatialfilter == 'SouthernOceanXY':
+                ids = southern_ocean_only_planar(x,y,z)
+        else:
+            ids = np.arange(len(x))
+        self.x = x[ids]
+        self.y = y[ids]
+        self.z = z[ids]
+        self.verticaltreatment = ensure_shape(self.x, verticaltreatments[verticaltreatment])
+        self.nparticles = len(self.x)
 
         self.dt = dt
 
         # 3D passive floats
-        self.zlevel = ensure_shape(x, zlevel)
+        self.zlevel = ensure_shape(x, zlevel)[ids]
 
         # isopycnal floats
-        self.buoypart = ensure_shape(x, buoypart)
         self.buoysurf = buoysurf
-        self.cellindices = cellindices
+        self.buoypart = ensure_shape(x, buoypart)[ids]
+        self.cellindices = cellindices[ids]
 
         # index level following floats
-        self.indexlevel = ensure_shape(x, indexlevel)
+        self.indexlevel = ensure_shape(x, indexlevel)[ids]
 
         # reset features
-        self.resettime = resettime
-        self.xreset = xreset
-        self.yreset = yreset
-        self.zreset = zreset
-        self.zlevelreset = zlevelreset
+        self.resettime = ensure_shape(x, resettime)[ids]
+        self.xreset = ensure_shape(x, xreset)[ids]
+        self.yreset = ensure_shape(x, yreset)[ids]
+        self.zreset = ensure_shape(x, zreset)[ids]
+        self.zlevelreset = ensure_shape(x, zlevelreset)[ids]
 
 
 class ParticleList():
@@ -169,7 +188,7 @@ def cell_centers(f_init): #{{{
 
     return xCell, yCell, zCell  #}}}
 
-def build_isopycnal_particles(buoysurf, f_init): #{{{
+def build_isopycnal_particles(buoysurf, f_init, afilter): #{{{
 
     xCell, yCell, zCell = cell_centers(f_init)
     nparticles = len(xCell)
@@ -182,9 +201,9 @@ def build_isopycnal_particles(buoysurf, f_init): #{{{
     buoypart = (np.tile(buoysurf,(nparticles,1))).reshape(nparticles*nbuoysurf,order='F').copy()
     cellindices = np.tile(np.arange(nparticles), (nbuoysurf))
 
-    return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf) #}}}
+    return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf, spatialfilter=afilter) #}}}
 
-def build_passive_floats(f_init, nvertlevels): #{{{
+def build_passive_floats(f_init, nvertlevels, afilter): #{{{
 
     xCell, yCell, zCell = cell_centers(f_init)
     x = expand_nlevels(xCell, nvertlevels)
@@ -196,7 +215,7 @@ def build_passive_floats(f_init, nvertlevels): #{{{
     f_init.close()
 
 
-    return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel) #}}}
+    return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
 
 def build_surface_floats(f_init):
     xCell, yCell, zCell = cell_centers(f_init)
@@ -207,15 +226,17 @@ def build_surface_floats(f_init):
 
     return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0)
 
-def build_particle_file(f_init, f_name, f_decomp, types, buoySurf, nVertLevels):
+def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels):
 
     # build particles
     particlelist = []
-    if 'buoyancy' in types:
-        particlelist.append(build_isopycnal_particles(buoySurf, f_init))
-    if 'passive' in types:
-        particlelist.append(build_passive_floats(f_init, nVertLevels))
-    if 'surface' in types:
+    if 'buoyancy' in types or 'all' in types:
+        particlelist.append(build_isopycnal_particles(buoySurf, f_init, spatialfilter))
+    if 'passive' in types or 'all' in types:
+        particlelist.append(build_passive_floats(f_init, nVertLevels, spatialfilter))
+    # apply surface particles everywhere to ensure that LIGHT works
+    # (allow for some load-imbalance for filters)
+    if 'surface' in types or 'all' in types:
         particlelist.append(build_surface_floats(f_init))
 
     # write particles to disk
@@ -247,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--types", dest="types",
             help="Types of particles",
             default="buoyancy",
-            metavar="One of ['buoyancy', 'passive', 'surface', 'all']")
+            metavar="One or more of ['buoyancy', 'passive', 'surface', 'all']")
     parser.add_argument("--nvertlevels", dest="nvertlevels",
             default=10,
             help="Number of vertical levels for passive, 3D floats",
@@ -264,6 +285,10 @@ if __name__ == "__main__":
             default=1030.0,
             help="Maximum value of potential density surface for isopycnally-constrained particles",
             metavar="INT")
+    parser.add_argument("--spatialfilter", dest="spatialfilter",
+            default=None,
+            help="Apply a certain type of spatial filter, e.g., 'SouthernOcean'",
+            metavar="STRING")
 
     args = parser.parse_args()
 
@@ -277,7 +302,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.graph):
         raise OSError('Graph file {} not found.'.format(args.graph))
 
-    build_particle_file(args.init, args.particles, args.graph, args.types,
+    build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
             np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels))
 
 # vim: foldmethod=marker ai ts=4 sts=4 et sw=4 ft=python
