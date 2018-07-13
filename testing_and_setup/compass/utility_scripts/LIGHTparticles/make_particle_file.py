@@ -1,5 +1,11 @@
 #!/usr/bin/env python
-# gist: https://gist.github.com/c8dc9cb15e1aa9180a1a576f1609ee62
+"""
+File writes a particle input dataset for use in MPAS-O / E3SM.
+
+Phillip J. Wolfram
+Last Modified: 07/05/2018
+"""
+
 import netCDF4
 import numpy as np
 
@@ -201,28 +207,77 @@ def build_surface_floats(f_init):
 
     return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0)
 
-def build_particle_file(f_init, f_name, f_decomp, buoySurf, nVertLevels):
+def build_particle_file(f_init, f_name, f_decomp, types, buoySurf, nVertLevels):
 
     # build particles
-    buoyancy = build_isopycnal_particles(buoySurf, f_init)
-    passive = build_passive_floats(f_init, nVertLevels)
-    surface = build_surface_floats(f_init)
+    particlelist = []
+    if 'buoyancy' in types:
+        particlelist.append(build_isopycnal_particles(buoySurf, f_init))
+    if 'passive' in types:
+        particlelist.append(build_passive_floats(f_init, nVertLevels))
+    if 'surface' in types:
+        particlelist.append(build_surface_floats(f_init))
 
     # write particles to disk
-    ParticleList([buoyancy, passive, surface]).write(f_name, f_decomp)
+    ParticleList(particlelist).write(f_name, f_decomp)
 
 
 if __name__ == "__main__":
-    import sys
+    import argparse
+    import os
 
-    potDenMin=1028.5
-    potDenMax=1030.0
-    procs=72
-    nbuoy = 11
-    nvertlevels = 10
-    init = '/home/ccsm-data/inputdata/ocn/mpas-o/oQU240/ocean.QU.240km.151209.nc'
-    particles = '/lcrc/group/acme/pwolfram/acme_scratch/20180509.GMPAS-IAF.T62_oQU240.anvil.particles/run/particles.nc'
-    graph = '/home/ccsm-data/inputdata/ocn/mpas-o/oQU240/mpas-o.graph.info.151209.part.' + str(procs)
-    build_particle_file(init, particles, graph, np.linspace(potDenMin,potDenMax,int(nbuoy)), int(nvertlevels))
+    parser = argparse.ArgumentParser(
+            description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument("-i", "--init", dest="init",
+            help="Name of netCDF init file",
+            default="init.nc",
+            metavar="PATH/INIT_NAME.nc")
+    parser.add_argument("-g", "--graph", dest="graph",
+            default='graph.info.part.',
+            help="Path / name of graph file of form */*.info.part.",
+            metavar="PATH/graph.info.part.")
+    parser.add_argument("-o", "--particlefile", dest="particles",
+            default="particles.nc",
+            help="Path / name of netCDF particle file",
+            metavar="PATH/particles.nc")
+    parser.add_argument("-p", "--procs", dest="procs",
+            help="Number of processors",
+            metavar="INT")
+    parser.add_argument("-t", "--types", dest="types",
+            help="Types of particles",
+            default="buoyancy",
+            metavar="One of ['buoyancy', 'passive', 'surface', 'all']")
+    parser.add_argument("--nvertlevels", dest="nvertlevels",
+            default=10,
+            help="Number of vertical levels for passive, 3D floats",
+            metavar="INT")
+    parser.add_argument("--nbuoysurf", dest="nbuoysurf",
+            default=11,
+            help="Number of buoyancy surfaces for isopycnally-constrained particles",
+            metavar="INT")
+    parser.add_argument("--potdensmin", dest="potdensmin",
+            default=1028.5,
+            help="Minimum value of potential density surface for isopycnally-constrained particles",
+            metavar="INT")
+    parser.add_argument("--potdensmax", dest="potdensmax",
+            default=1030.0,
+            help="Maximum value of potential density surface for isopycnally-constrained particles",
+            metavar="INT")
+
+    args = parser.parse_args()
+
+    if not '.info.part.' in args.graph:
+        OSError('Graph file processor count is inconsistent with processors specified!')
+    if not ('.' + str(args.procs)) in args.graph:
+        args.graph = args.graph + str(args.procs)
+
+    if not os.path.exists(args.init):
+        raise OSError('Init file {} not found.'.format(args.init))
+    if not os.path.exists(args.graph):
+        raise OSError('Graph file {} not found.'.format(args.graph))
+
+    build_particle_file(args.init, args.particles, args.graph, args.types,
+            np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels))
 
 # vim: foldmethod=marker ai ts=4 sts=4 et sw=4 ft=python
