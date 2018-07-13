@@ -8,6 +8,7 @@ Last Modified: 07/12/2018
 
 import netCDF4
 import numpy as np
+from scipy import spatial
 
 verticaltreatments = {'indexLevel':1, 'fixedZLevel': 2, 'passiveFloat': 3, 'buoyancySurface': 4, 'argoFloat': 5}
 defaults = {'dt': 300, 'resettime': 1.0*24.0*60.0*60.0}
@@ -34,6 +35,59 @@ def southern_ocean_only_xyz(x, y, z, maxNorth=-45.0):
 def southern_ocean_only_planar(x, y, z, maxy=1000.0*1e3):
     ids = y < maxy
     return ids
+
+def remap_particles(fin, fpart, fdecomp):
+    """
+    Remap particles onto a new grid decomposition.
+
+    Load in particle positions, locations of grid cell centers, and decomposition
+    corresponding to fin.
+
+    The goal is to update particle field currentBlock to comply with the new grid
+    as defined by fin and decomp.  NOTE: FIN AND FDECOMP MUST BE COMPATIBLE!
+
+    We assume that all particles will be within the domain such that a nearest
+    neighbor search is sufficient to make the remap.
+
+    Phillip Wolfram
+    LANL
+    Origin: 08/19/2014, Updated: 07/13/2018
+    """
+    # load the files
+    f_in = netCDF4.Dataset(fin, 'r')
+    f_part = netCDF4.Dataset(fpart,'r+')
+
+    # get the particle data
+    xpart = f_part.variables['xParticle']
+    ypart = f_part.variables['yParticle']
+    zpart = f_part.variables['zParticle']
+    currentBlock = f_part.variables['currentBlock']
+    try:
+        currentCell = f_part.variables['currentCell']
+    except:
+        currentCell = f_part.createVariable('currentCell', 'i', ('nParticles'))
+
+    # get the cell positions
+    xcell = f_in.variables['xCell']
+    ycell = f_in.variables['yCell']
+    zcell = f_in.variables['zCell']
+
+    # build the spatial tree
+    tree = spatial.cKDTree(np.vstack((xcell,ycell,zcell)).T)
+
+    # get nearest cell for each particle
+    dvEdge = f_in.variables['dvEdge']
+    maxdist = 2.0*max(dvEdge[:])
+    _, cellIndices = tree.query(np.vstack((xpart,ypart,zpart)).T,distance_upper_bound=maxdist,k=1)
+
+    # load the decomposition (apply to latest time step)
+    decomp = np.genfromtxt(fdecomp)
+    currentBlock[-1,:] = decomp[cellIndices]
+    currentCell[-1,:] = cellIndices + 1
+
+    # close the files
+    f_in.close()
+    f_part.close()
 
 class Particles():
 
@@ -289,6 +343,9 @@ if __name__ == "__main__":
             default=None,
             help="Apply a certain type of spatial filter, e.g., 'SouthernOcean'",
             metavar="STRING")
+    parser.add_argument("--remap", dest="remap",
+            action="store_true",
+            help="Remap particle file based on input mesh and decomposition.")
 
     args = parser.parse_args()
 
@@ -302,7 +359,14 @@ if __name__ == "__main__":
     if not os.path.exists(args.graph):
         raise OSError('Graph file {} not found.'.format(args.graph))
 
-    build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
-            np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels))
+    if not args.remap:
+        print('Building particle file...')
+        build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
+                np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels))
+        print('Done building particle file')
+    else:
+        print('Remapping particles...')
+        remap_particles(args.init, args.particles, args.graph)
+        print('Done remapping particles')
 
 # vim: foldmethod=marker ai ts=4 sts=4 et sw=4 ft=python
