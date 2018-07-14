@@ -113,7 +113,8 @@ class Particles():
         self.zlevel = ensure_shape(x, zlevel)[ids]
 
         # isopycnal floats
-        self.buoysurf = buoysurf
+        if buoysurf is not None:
+            self.buoysurf = buoysurf
         self.buoypart = ensure_shape(x, buoypart)[ids]
         self.cellindices = cellindices[ids]
 
@@ -139,7 +140,7 @@ class ParticleList():
         # buoyancysurf
         buoysurf = np.array([])
         for alist in self.particlelist:
-            buoysurf = np.unique(np.setxor1d(None,np.append(buoysurf, alist.buoysurf)))
+            buoysurf = np.unique(np.setdiff1d(np.append(buoysurf, alist.buoysurf), None))
         self.buoysurf = np.asarray(buoysurf, dtype='f8')
 
 
