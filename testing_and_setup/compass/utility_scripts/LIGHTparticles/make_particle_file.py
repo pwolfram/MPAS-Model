@@ -140,8 +140,12 @@ class ParticleList():
         # buoyancysurf
         buoysurf = np.array([])
         for alist in self.particlelist:
-            buoysurf = np.unique(np.setdiff1d(np.append(buoysurf, alist.buoysurf), None))
-        self.buoysurf = np.asarray(buoysurf, dtype='f8')
+            if 'buoysurf' in dir(alist):
+                buoysurf = np.unique(np.setdiff1d(np.append(buoysurf, alist.buoysurf), None))
+        if len(buoysurf) > 0:
+            self.buoysurf = np.asarray(buoysurf, dtype='f8')
+        else:
+            self.buoysurf = None
 
 
     def __getattr__(self, name):
