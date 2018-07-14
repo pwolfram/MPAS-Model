@@ -253,6 +253,7 @@ contains
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: scratchPool
       type (mpas_pool_type), pointer :: diagnosticsPool
+      type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: lagrPartTrackFieldsPool, lagrPartTrackCellsPool, lagrPartTrackScratchPool
       integer, dimension(:), pointer :: cellOwnerBlock
       integer, pointer :: currentBlock, ioBlock, indexToParticleID, transfered
@@ -306,14 +307,15 @@ contains
       logical :: resetParticle, resetParticleAny
       integer :: err_tmp
 
-      % sampling variables
-      logical :: config_AM_lagrPartTrack_sample_temperature
-      real (kind=RKIND), pointer :: temperature
-      real (kind=RKIND), dimension(:,:), pointer  :: celltemperature
+      ! sampling variables
+      integer, pointer :: index_temperature, index_salinity
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
-      logical :: config_AM_lagrPartTrack_sample_salinity
+      logical, pointer :: config_AM_lagrPartTrack_sample_temperature
+      real (kind=RKIND), pointer :: temperature
+
+      logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: salinity
-      real (kind=RKIND), dimension(:,:), pointer  :: cellsalinity
 
       REAL (kind=RKIND), parameter :: eps=1e-12
 
@@ -335,6 +337,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_compute_interval', config_AM_lagrPartTrack_compute_interval)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_output_stream', config_AM_lagrPartTrack_output_stream)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_timeIntegration', timeIntegration)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
 
       if (trim(config_AM_lagrPartTrack_reset_criteria) == 'none') then
         config_AM_lagrPartTrack_reset_particles = .False.
@@ -363,6 +367,7 @@ contains
         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackFields', lagrPartTrackFieldsPool)
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackScratch', lagrPartTrackScratchPool)
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackCells', lagrPartTrackCellsPool)
@@ -391,9 +396,10 @@ contains
         !call mpas_dmpar_exch_halo_field(normalVelocity)
         call mpas_pool_get_field(statePool, 'layerThickness', layerThickness, timeLevel=timeLevel)
 
-        % sampling variables
-        call mpas_pool_get_array(statePool, 'temperature', celltemperature, timeLevel=timeLevel)
-        call mpas_pool_get_array(statePool, 'salinity', cellsalinity, timeLevel=timeLevel)
+        ! sampling variables
+        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
+        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
@@ -490,7 +496,7 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
           call mpas_pool_get_array(particle % haloDataPool, 'currentCell', iCell)
 
-          % sampling variables
+          ! sampling variables
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', salinity)
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
@@ -788,14 +794,20 @@ contains
 
            !end if
 
-           if (config_AM_lagrPartTrack_sample_temperature) then
-            call interp_cell_scalars(iLevel, maxLevelCell(iCell), zLevelParticle, zMid(:,iCell), &
-              celltemperature(:,iCell), temperature)
-           end if
+           if ( associated(activeTracers) ) then
+             if (config_AM_lagrPartTrack_sample_temperature) then
+              !call mpas_log_write(' testing output for temperature')
+              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                activeTracers(index_temperature,:,iCell), temperature)
+              !call mpas_log_write('done testing output for temperature')
+             end if
 
-           if (config_AM_lagrPartTrack_sample_salinity) then
-            call interp_cell_scalars(iLevel, maxLevelCell(iCell), zLevelParticle, zMid(:,iCell), &
-              cellsalinity(:,iCell), salinity)
+             if (config_AM_lagrPartTrack_sample_salinity) then
+              !call mpas_log_write(' testing output for salinity')
+              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                activeTracers(index_salinity,:,iCell), salinity)
+              !call mpas_log_write('done testing output for salinity')
+             end if
            end if
 
 !          ! compute necessary information for autocorrelation !{{{
@@ -1765,7 +1777,18 @@ contains
       real (kind=RKIND), pointer :: sphereRadius
       integer, pointer :: verticalTreatment, indexLevel, filterNum, iCell
 
+      type (mpas_pool_type), pointer :: tracersPool
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+      integer, pointer :: index_temperature, index_salinity
+      logical, pointer :: config_AM_lagrPartTrack_sample_temperature
+      real (kind=RKIND), pointer :: temperature
+      logical, pointer :: config_AM_lagrPartTrack_sample_salinity
+      real (kind=RKIND), pointer :: salinity
+
       err = 0
+
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
 
       dminfo = domain % dminfo
 
@@ -1779,6 +1802,7 @@ contains
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackFields', lagrPartTrackFieldsPool)
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackScratch', lagrPartTrackScratchPool)
         call mpas_pool_get_subpool(block % structs, 'lagrPartTrackCells', lagrPartTrackCellsPool)
+        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
         ! particlelist should be stored in the structs pool probably (need to seriously rework the code!)
         particlelist => block % particlelist
@@ -1798,6 +1822,10 @@ contains
         call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
         call mpas_dmpar_exch_halo_field(normalVelocity)
         call mpas_pool_get_field(statePool, 'layerThickness', layerThickness, timeLevel=timeLevel)
+
+        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel=timeLevel)
+        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
+        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
@@ -1838,6 +1866,9 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'buoyancyParticle', buoyancyParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
 
+          call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'salinity', salinity)
+
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
@@ -1867,17 +1898,20 @@ contains
 #endif
 
           if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
-            iLevelBuoyancy = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell))
+            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell))
 
             ! interpolate the scalars now (assumes that scalar value is constant within a particular cell)
-            call interp_cell_scalars(iLevelBuoyancy, maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell), &
+            call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell), &
               zMid(:,iCell), zLevelParticle)
           else if (verticalTreatment == 1) then !('indexLevel')
             zLevelParticle = zMid(indexLevel, iCell)
             iLevel = indexLevel
-          else
+          else if (verticalTreatment == 3 .or. verticalTreatment == 2) then !('passiveFloat' or 'fixedZLevel')
             ! make sure final zLevelParticle is ok so that it can't extent past zMid range
             iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
+            !call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
+          else
+            call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
           end if
 
           ! compute necessary information for autocorrelation !{{{
@@ -1903,6 +1937,21 @@ contains
 !          ! store velocity for use in computing normalized autocorrelation offline
 !          call mpas_convert_xyz_velocity_to_latlon(lonVel, latVel, particlePosition, particleVelocity)
           !}}}
+          if ( associated(activeTracers) ) then
+            if (config_AM_lagrPartTrack_sample_temperature) then
+             !call mpas_log_write(' testing output for temperature')
+             call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+               activeTracers(index_temperature,:,iCell), temperature)
+             !call mpas_log_write('done testing output for temperature')
+            end if
+
+            if (config_AM_lagrPartTrack_sample_salinity) then
+             !call mpas_log_write(' testing output for salinity')
+             call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+               activeTracers(index_salinity,:,iCell), salinity)
+             !call mpas_log_write('done testing output for salinity')
+            end if
+          end if
 
           ! get next particle to process on the list
           particlelist => particlelist % next
@@ -1965,7 +2014,7 @@ contains
      !-----------------------------------------------------------------
      ! local variables
      !-----------------------------------------------------------------
-     integer :: aVertex, theVertex
+     integer :: aVertex, theVertex, iLevelTmp
 
      vertVelocityInterp = 0.0_RKIND
 
@@ -2008,9 +2057,11 @@ contains
 
        case (3) verticalTreatmentCase !('passiveFloat') !{{{
 
-         ! interpolate the vertical velocity
+         ! interpolate the vertical velocity (can be different than zMid...,
+         ! which is assumed input)
+         iLevelTmp = mpas_get_vertical_id(nVertLevels, zLoc, zTop)
          vertVelocityInterp = interp_vert_velocity_to_zlevel( &
-           iLevel, zLoc, zTop, vertVelocityTop)
+           iLevelTmp, zLoc, zTop, vertVelocityTop)
 
          ! interpolate the horizontal velocity based on z-levels
          call interp_nodal_vectors(ncellvertices, verticesoncell, &
@@ -2842,7 +2893,10 @@ contains
          alpha = (zSubStep - zTop(iLevel))/(zTop(iLevel+1)- zTop(iLevel))
 #ifdef MPAS_DEBUG
        else
-         call mpas_log_write( 'Error with vertical velocity interpolation!', MPAS_LOG_CRIT)
+         call mpas_log_write('Error with vertical velocity interpolation! ' // &
+           'iLevel = $i, zTop(iLevel) = $r, zTop(iLevel+1)=$r zTop(iLevel+2) = $r zSubstep=$r', &
+           realArgs =(/zTop(iLevel), zTop(iLevel+1), zTop(iLevel+2), zSubStep/), intArgs=(/iLevel/), messageType=MPAS_LOG_CRIT)
+         !call mpas_log_write( 'Error with vertical velocity interpolation!', MPAS_LOG_CRIT)
 #endif
        end if
        interp_vert_velocity_to_zlevel = alpha * vertVelocityTop(iLevel)+ (1.0_RKIND - alpha) * vertVelocityTop(iLevel+1)
