@@ -9,34 +9,40 @@ Last Modified: 07/12/2018
 import netCDF4
 import numpy as np
 from scipy import spatial
+import pyamg
 
 verticaltreatments = {'indexLevel':1, 'fixedZLevel': 2, 'passiveFloat': 3, 'buoyancySurface': 4, 'argoFloat': 5}
 defaults = {'dt': 300, 'resettime': 1.0*24.0*60.0*60.0}
 
-def use_defaults(name, val):
+
+def use_defaults(name, val): #{{{
     if (val is not None) or (val is not np.nan):
         return val
     else:
-        return defaults[name]
+        return defaults[name] #}}}
 
-def ensure_shape(start, new):
+
+def ensure_shape(start, new): #{{{
     if isinstance(new, (int, float)):
         new = new*np.ones_like(start)
-    return new
+    return new #}}}
 
-def southern_ocean_only_xyz(x, y, z, maxNorth=-45.0):
+
+def southern_ocean_only_xyz(x, y, z, maxNorth=-45.0): #{{{
     sq = np.sqrt(x**2 + y**2 + z**2)
     lat = np.arcsin(z / sq)
     #lon = np.arctan2(y, x)
     ok = np.pi/180.0*maxNorth
     ids = lat < ok
-    return ids
+    return ids #}}}
 
-def southern_ocean_only_planar(x, y, z, maxy=1000.0*1e3):
+
+def southern_ocean_only_planar(x, y, z, maxy=1000.0*1e3): #{{{
     ids = y < maxy
-    return ids
+    return ids #}}}
 
-def remap_particles(fin, fpart, fdecomp):
+
+def remap_particles(fin, fpart, fdecomp): #{{{
     """
     Remap particles onto a new grid decomposition.
 
@@ -89,11 +95,16 @@ def remap_particles(fin, fpart, fdecomp):
     f_in.close()
     f_part.close()
 
-class Particles():
+    #}}}
+
+
+class Particles(): #{{{
 
     def __init__(self, x, y, z, cellindices, verticaltreatment, dt=np.nan, zlevel=np.nan,
             indexlevel=np.nan, buoypart=np.nan, buoysurf=None, spatialfilter=None,
-            resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan):
+            resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan,
+            spatialdownsample=False): #{{{
+
         if spatialfilter:
             if spatialfilter == 'SouthernOceanXYZ':
                 ids = southern_ocean_only_xyz(x,y,z)
@@ -128,13 +139,17 @@ class Particles():
         self.zreset = ensure_shape(x, zreset)[ids]
         self.zlevelreset = ensure_shape(x, zlevelreset)[ids]
 
+        return #}}}
+#}}}
 
-class ParticleList():
 
-    def __init__(self, particlelist):
-        self.particlelist = particlelist
+class ParticleList(): #{{{
 
-    def aggregate(self):
+    def __init__(self, particlelist): #{{{
+        self.particlelist = particlelist #}}}
+
+
+    def aggregate(self): #{{{
         self.len()
 
         # buoyancysurf
@@ -147,28 +162,34 @@ class ParticleList():
         else:
             self.buoysurf = None
 
+        return #}}}
 
-    def __getattr__(self, name):
+
+    def __getattr__(self, name): #{{{
         # __getattr__ ensures self.x is concatenated properly
-        return self.concatenate(name)
+        return self.concatenate(name) #}}}
 
-    def concatenate(self, varname):
+
+    def concatenate(self, varname): #{{{
         var = getattr(self.particlelist[0], varname)
         for alist in self.particlelist[1:]:
             var = np.append(var, getattr(alist, varname))
-        return var
+        return var #}}}
 
-    def append(particlelist):
-        self.particlelist.append(particlelist[:])
 
-    def len(self):
+    def append(particlelist): #{{{
+        self.particlelist.append(particlelist[:]) #}}}
+
+
+    def len(self): #{{{
         self.nparticles = 0
         for alist in self.particlelist:
             self.nparticles += alist.nparticles
 
-        return self.nparticles
+        return self.nparticles #}}}
 
-    def write(self, f_name, f_decomp):
+
+    def write(self, f_name, f_decomp):  #{{{
 
         self.aggregate()
 
@@ -229,14 +250,19 @@ class ParticleList():
         f_out.variables['zLevelParticleReset'][:] = f_out.variables['zLevelParticle'][0,:]
 
         f_out.close()
+        return #}}}
+#}}}
+
 
 def get_cell_coords(f_init): #{{{
     return f_init.variables['xCell'][:], \
            f_init.variables['yCell'][:], \
            f_init.variables['zCell'][:] #}}}
 
+
 def expand_nlevels(x, n): #{{{
     return np.tile(x, (n)) #}}}
+
 
 def cell_centers(f_init): #{{{
 
@@ -246,6 +272,7 @@ def cell_centers(f_init): #{{{
     f_init.close()
 
     return xCell, yCell, zCell  #}}}
+
 
 def build_isopycnal_particles(buoysurf, f_init, afilter): #{{{
 
@@ -262,6 +289,7 @@ def build_isopycnal_particles(buoysurf, f_init, afilter): #{{{
 
     return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf, spatialfilter=afilter) #}}}
 
+
 def build_passive_floats(f_init, nvertlevels, afilter): #{{{
 
     xCell, yCell, zCell = cell_centers(f_init)
@@ -276,16 +304,18 @@ def build_passive_floats(f_init, nvertlevels, afilter): #{{{
 
     return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
 
-def build_surface_floats(f_init):
+
+def build_surface_floats(f_init): #{{{
     xCell, yCell, zCell = cell_centers(f_init)
     x = expand_nlevels(xCell, 1)
     y = expand_nlevels(yCell, 1)
     z = expand_nlevels(zCell, 1)
     cellindices = np.arange(len(xCell))
 
-    return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0)
+    return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0) #}}}
 
-def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels):
+
+def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels): #{{{
 
     # build particles
     particlelist = []
@@ -300,6 +330,8 @@ def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf
 
     # write particles to disk
     ParticleList(particlelist).write(f_name, f_decomp)
+
+    return #}}}
 
 
 if __name__ == "__main__":
