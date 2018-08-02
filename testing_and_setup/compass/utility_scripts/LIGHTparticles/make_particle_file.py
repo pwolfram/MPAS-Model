@@ -102,8 +102,7 @@ class Particles(): #{{{
 
     def __init__(self, x, y, z, cellindices, verticaltreatment, dt=np.nan, zlevel=np.nan,
             indexlevel=np.nan, buoypart=np.nan, buoysurf=None, spatialfilter=None,
-            resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan,
-            spatialdownsample=False): #{{{
+            resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan): #{{{
 
         if spatialfilter:
             if spatialfilter == 'SouthernOceanXYZ':
@@ -112,6 +111,7 @@ class Particles(): #{{{
                 ids = southern_ocean_only_planar(x,y,z)
         else:
             ids = np.arange(len(x))
+
         self.x = x[ids]
         self.y = y[ids]
         self.z = z[ids]
