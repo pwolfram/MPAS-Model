@@ -2,14 +2,20 @@
 """
 File writes a particle input dataset for use in MPAS-O / E3SM.
 
+Example usage is
+
+    python make_particle_file.py -i init.nc -g graph.info.part.6 \
+            -o particles.nc -p 6 --spatialfilter SouthernOceanXYZ
+
 Phillip J. Wolfram
-Last Modified: 07/12/2018
+Last Modified: 08/03/2018
 """
 
 import netCDF4
 import numpy as np
 from scipy import spatial
-import pyamg
+from scipy import sparse
+from pyamg.classical import split
 
 verticaltreatments = {'indexLevel':1, 'fixedZLevel': 2, 'passiveFloat': 3, 'buoyancySurface': 4, 'argoFloat': 5}
 defaults = {'dt': 300, 'resettime': 1.0*24.0*60.0*60.0}
@@ -97,6 +103,32 @@ def remap_particles(fin, fpart, fdecomp): #{{{
 
     #}}}
 
+
+def downsample_points(x, y, z, tri): #{{{
+    """
+    Downsample points using algebraic multigrid splitting.
+
+    Note, currently assumes that all points on grid are equidistant, which does
+    a numeric (not area-weighted) downsampling.
+
+    Phillip Wolfram
+    LANL
+    Origin: 03/09/2015, Updated: 08/03/2018
+    """
+    # build A
+    Np = x.shape[0]
+    A = sparse.lil_matrix((Np, Np))
+    for anum in np.arange(Np):
+        adj = np.where(np.sum(anum == tri, axis=1))
+        for atri in np.sort(adj):
+            A[anum, tri[atri,:]] += np.ones_like(atri)[:,np.newaxis]
+        A[anum, anum] *= -1
+    # A = -A
+
+    # Grab root-nodes (i.e., Coarse / Fine splitting)
+    Cpts = np.asarray(split.PMIS(A.tocsr()), dtype=bool)
+
+    return x[Cpts], y[Cpts], z[Cpts] #}}}
 
 class Particles(): #{{{
 
@@ -264,19 +296,21 @@ def expand_nlevels(x, n): #{{{
     return np.tile(x, (n)) #}}}
 
 
-def cell_centers(f_init): #{{{
+def cell_centers(f_init, downsample): #{{{
 
     f_init = netCDF4.Dataset(f_init,'r')
     nparticles = len(f_init.dimensions['nCells'])
     xCell, yCell, zCell = get_cell_coords(f_init)
+    if downsample:
+        tri = f_init.variables['cellsOnVertex'][:,:] - 1
+        xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri)
     f_init.close()
 
     return xCell, yCell, zCell  #}}}
 
 
-def build_isopycnal_particles(buoysurf, f_init, afilter): #{{{
+def build_isopycnal_particles(xCell, yCell, zCell, buoysurf, afilter): #{{{
 
-    xCell, yCell, zCell = cell_centers(f_init)
     nparticles = len(xCell)
     nbuoysurf = buoysurf.shape[0]
 
@@ -290,9 +324,8 @@ def build_isopycnal_particles(buoysurf, f_init, afilter): #{{{
     return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf, spatialfilter=afilter) #}}}
 
 
-def build_passive_floats(f_init, nvertlevels, afilter): #{{{
+def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter): #{{{
 
-    xCell, yCell, zCell = cell_centers(f_init)
     x = expand_nlevels(xCell, nvertlevels)
     y = expand_nlevels(yCell, nvertlevels)
     z = expand_nlevels(zCell, nvertlevels)
@@ -305,8 +338,8 @@ def build_passive_floats(f_init, nvertlevels, afilter): #{{{
     return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
 
 
-def build_surface_floats(f_init): #{{{
-    xCell, yCell, zCell = cell_centers(f_init)
+def build_surface_floats(xCell, yCell, zCell): #{{{
+
     x = expand_nlevels(xCell, 1)
     y = expand_nlevels(yCell, 1)
     z = expand_nlevels(zCell, 1)
@@ -315,18 +348,20 @@ def build_surface_floats(f_init): #{{{
     return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0) #}}}
 
 
-def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels): #{{{
+def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels, downsample): #{{{
+
+    xCell, yCell, zCell = cell_centers(f_init, downsample)
 
     # build particles
     particlelist = []
     if 'buoyancy' in types or 'all' in types:
-        particlelist.append(build_isopycnal_particles(buoySurf, f_init, spatialfilter))
+        particlelist.append(build_isopycnal_particles(xCell, yCell, zCell, buoySurf, spatialfilter))
     if 'passive' in types or 'all' in types:
-        particlelist.append(build_passive_floats(f_init, nVertLevels, spatialfilter))
+        particlelist.append(build_passive_floats(xCell, yCell, zCell, f_init, nVertLevels, spatialfilter ))
     # apply surface particles everywhere to ensure that LIGHT works
     # (allow for some load-imbalance for filters)
     if 'surface' in types or 'all' in types:
-        particlelist.append(build_surface_floats(f_init))
+        particlelist.append(build_surface_floats(xCell, yCell, zCell))
 
     # write particles to disk
     ParticleList(particlelist).write(f_name, f_decomp)
@@ -383,6 +418,9 @@ if __name__ == "__main__":
     parser.add_argument("--remap", dest="remap",
             action="store_true",
             help="Remap particle file based on input mesh and decomposition.")
+    parser.add_argument("--downsample", dest="downsample",
+            action="store_true",
+            help="Downsample particle positions using AMG.")
 
     args = parser.parse_args()
 
@@ -399,7 +437,8 @@ if __name__ == "__main__":
     if not args.remap:
         print('Building particle file...')
         build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
-                np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels))
+                np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels),
+                args.downsample)
         print('Done building particle file')
     else:
         print('Remapping particles...')
