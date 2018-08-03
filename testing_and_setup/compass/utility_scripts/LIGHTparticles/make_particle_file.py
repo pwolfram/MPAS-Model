@@ -136,13 +136,13 @@ class Particles(): #{{{
             indexlevel=np.nan, buoypart=np.nan, buoysurf=None, spatialfilter=None,
             resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan): #{{{
 
+        # start with all the indicies and restrict
+        ids = np.arange(len(x))
         if spatialfilter:
-            if spatialfilter == 'SouthernOceanXYZ':
-                ids = southern_ocean_only_xyz(x,y,z)
-            elif spatialfilter == 'SouthernOceanXY':
-                ids = southern_ocean_only_planar(x,y,z)
-        else:
-            ids = np.arange(len(x))
+            if 'SouthernOceanXYZ' in spatialfilter:
+                ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_xyz(x,y,z)])
+            if 'SouthernOceanXY' in spatialfilter:
+                ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_planar(x,y,z)])
 
         self.x = x[ids]
         self.y = y[ids]
