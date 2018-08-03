@@ -349,14 +349,14 @@ def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter): #{{
     return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
 
 
-def build_surface_floats(xCell, yCell, zCell): #{{{
+def build_surface_floats(xCell, yCell, zCell, afilter): #{{{
 
     x = expand_nlevels(xCell, 1)
     y = expand_nlevels(yCell, 1)
     z = expand_nlevels(zCell, 1)
     cellindices = np.arange(len(xCell))
 
-    return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0) #}}}
+    return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0, spatialfilter=afilter) #}}}
 
 
 def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels, downsample): #{{{
@@ -372,7 +372,7 @@ def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf
     # apply surface particles everywhere to ensure that LIGHT works
     # (allow for some load-imbalance for filters)
     if 'surface' in types or 'all' in types:
-        particlelist.append(build_surface_floats(xCell, yCell, zCell))
+        particlelist.append(build_surface_floats(xCell, yCell, zCell, spatialfilter))
 
     # write particles to disk
     ParticleList(particlelist).write(f_name, f_decomp)
