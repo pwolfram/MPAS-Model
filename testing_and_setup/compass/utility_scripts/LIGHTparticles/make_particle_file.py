@@ -5,7 +5,8 @@ File writes a particle input dataset for use in MPAS-O / E3SM.
 Example usage is
 
     python make_particle_file.py -i init.nc -g graph.info.part.6 \
-            -o particles.nc -p 6 --spatialfilter SouthernOceanXYZ
+            -o particles.nc -p 6 --spatialfilter SouthernOceanXYZ \
+            --downsample=1
 
 Phillip J. Wolfram
 Last Modified: 08/03/2018
@@ -15,7 +16,7 @@ import netCDF4
 import numpy as np
 from scipy import spatial
 from scipy import sparse
-from pyamg.classical import split
+from pyamg.classical import split, interpolate as amginterp
 
 verticaltreatments = {'indexLevel':1, 'fixedZLevel': 2, 'passiveFloat': 3, 'buoyancySurface': 4, 'argoFloat': 5}
 defaults = {'dt': 300, 'resettime': 1.0*24.0*60.0*60.0}
@@ -104,7 +105,7 @@ def remap_particles(fin, fpart, fdecomp): #{{{
     #}}}
 
 
-def downsample_points(x, y, z, tri): #{{{
+def downsample_points(x, y, z, tri, nsplit): #{{{
     """
     Downsample points using algebraic multigrid splitting.
 
@@ -125,8 +126,18 @@ def downsample_points(x, y, z, tri): #{{{
         A[anum, anum] *= -1
     # A = -A
 
+    A = A.tocsr()
+    Cpts = np.arange(Np)
     # Grab root-nodes (i.e., Coarse / Fine splitting)
-    Cpts = np.asarray(split.PMIS(A.tocsr()), dtype=bool)
+    for ii in np.arange(nsplit):
+        splitting = split.PMIS(A)
+        # convert to index for subsetting particles
+        Cpts = Cpts[np.asarray(splitting, dtype=bool)]
+
+        if ii < nsplit - 1:
+            P = amginterp.direct_interpolation(A, A, splitting)
+            R = P.T.tocsr()
+            A = R * A * P
 
     return x[Cpts], y[Cpts], z[Cpts] #}}}
 
@@ -303,7 +314,7 @@ def cell_centers(f_init, downsample): #{{{
     xCell, yCell, zCell = get_cell_coords(f_init)
     if downsample:
         tri = f_init.variables['cellsOnVertex'][:,:] - 1
-        xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri)
+        xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri, downsample)
     f_init.close()
 
     return xCell, yCell, zCell  #}}}
@@ -418,9 +429,9 @@ if __name__ == "__main__":
     parser.add_argument("--remap", dest="remap",
             action="store_true",
             help="Remap particle file based on input mesh and decomposition.")
-    parser.add_argument("--downsample", dest="downsample",
-            action="store_true",
-            help="Downsample particle positions using AMG.")
+    parser.add_argument("-d", "--downsample", dest="downsample",
+            metavar="INT", default=0,
+            help="Downsample particle positions using AMG a number of times.")
 
     args = parser.parse_args()
 
@@ -438,7 +449,7 @@ if __name__ == "__main__":
         print('Building particle file...')
         build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
                 np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels),
-                args.downsample)
+                int(args.downsample))
         print('Done building particle file')
     else:
         print('Remapping particles...')
