@@ -393,7 +393,7 @@ if __name__ == "__main__":
             metavar="INT")
     parser.add_argument("-t", "--types", dest="types",
             help="Types of particles",
-            default="buoyancy",
+            default="all",
             metavar="One or more of ['buoyancy', 'passive', 'surface', 'all']")
     parser.add_argument("--nvertlevels", dest="nvertlevels",
             default=10,
