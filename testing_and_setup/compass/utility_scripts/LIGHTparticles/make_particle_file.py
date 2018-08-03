@@ -234,7 +234,11 @@ class ParticleList(): #{{{
 
     def write(self, f_name, f_decomp):  #{{{
 
+        decomp = np.genfromtxt(f_decomp)
+
         self.aggregate()
+        assert max(decomp) < self.nparticles, \
+                'Number of particles must be larger than decomposition!'
 
         f_out = netCDF4.Dataset(f_name, 'w',format='NETCDF3_64BIT_OFFSET')
 
@@ -282,7 +286,6 @@ class ParticleList(): #{{{
         f_out.variables['indexToParticleID'][:] = np.arange(self.nparticles)
 
         # resets
-        decomp = np.genfromtxt(f_decomp)
         f_out.variables['currentBlock'][0,:] = decomp[self.cellindices]
         f_out.variables['currentBlockReset'][:] = decomp[self.cellindices]
         f_out.variables['currentCell'][0,:] = -1
