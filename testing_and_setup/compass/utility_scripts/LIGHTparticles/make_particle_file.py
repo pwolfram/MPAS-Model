@@ -257,7 +257,7 @@ class ParticleList(): #{{{
 
         f_out.variables['zLevelParticle'][0,:] = self.zlevel
 
-        if len(self.buoysurf) > 0:
+        if self.buoysurf is not None and len(self.buoysurf) > 0:
             f_out.createDimension('nBuoyancySurfaces', len(self.buoysurf))
             f_out.createVariable('buoyancySurfaceValues', 'f8', ('nBuoyancySurfaces'))
             f_out.variables['buoyancyParticle'][0,:] = self.buoypart
