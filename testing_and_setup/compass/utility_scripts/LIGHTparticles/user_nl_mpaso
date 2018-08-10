@@ -28,5 +28,5 @@ config_write_output_on_startup = .true.
  config_am_lagrparttrack_reset_global_timestamp = '0029_23:59:59'
  config_am_lagrparttrack_reset_if_inside_region = .false.
  config_am_lagrparttrack_reset_if_outside_region = .false.
- config_am_lagrparttrack_write_on_startup = .true.
+ config_am_lagrparttrack_write_on_startup = .false.
 /
