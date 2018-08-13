@@ -427,7 +427,7 @@ if __name__ == "__main__":
             metavar="INT")
     parser.add_argument("--spatialfilter", dest="spatialfilter",
             default=None,
-            help="Apply a certain type of spatial filter, e.g., 'SouthernOcean'",
+            help="Apply a certain type of spatial filter, e.g., 'SouthernOceanXYZ'",
             metavar="STRING")
     parser.add_argument("--remap", dest="remap",
             action="store_true",
