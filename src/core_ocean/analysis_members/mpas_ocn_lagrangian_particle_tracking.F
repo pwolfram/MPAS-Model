@@ -319,12 +319,12 @@ contains
 
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
-      
+
       ! BGC tracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
                           index_ALK
-      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers 
+      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers
 
       ! DIC
       logical, pointer :: config_AM_lagrPartTrack_sample_DIC
@@ -333,7 +333,7 @@ contains
       ! ALK
       logical, pointer :: config_AM_lagrPartTrack_sample_ALK
       real (kind=RKIND), pointer :: particleALK
-  
+
       REAL (kind=RKIND), parameter :: eps=1e-12
 
 
@@ -532,11 +532,12 @@ contains
           ! sampling variables
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
           end if
-          
+
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
@@ -1956,10 +1957,12 @@ contains
 
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
-          end if 
+          end if
+
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
