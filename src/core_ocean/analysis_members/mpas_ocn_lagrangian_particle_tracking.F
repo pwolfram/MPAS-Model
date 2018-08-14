@@ -320,8 +320,6 @@ contains
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
       
-      REAL (kind=RKIND), parameter :: eps=1e-12
-      
       ! BGC tracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
@@ -336,7 +334,6 @@ contains
       logical, pointer :: config_AM_lagrPartTrack_sample_ALK
       real (kind=RKIND), pointer :: particleALK
   
-
       REAL (kind=RKIND), parameter :: eps=1e-12
 
 
@@ -539,7 +536,8 @@ contains
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
           end if
-!          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
+
+!         call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumV', sumV)
