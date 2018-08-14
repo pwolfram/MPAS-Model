@@ -861,14 +861,14 @@ contains
                    ecosysTracers(index_DIC,:,iCell), particleDIC)
                  !call mpas_log_write('done testing output for DIC')
                end if
-               
+
                if (config_AM_lagrPartTrack_sample_ALK) then
                  !call mpas_log_write('testing output for ALK')
                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                    ecosysTracers(index_ALK,:,iCell), particleALK)
                  !call mpas_log_write('done testing output for ALK')
                end if
-             end if 
+             end if
            end if
 
 !          ! compute necessary information for autocorrelation !{{{
@@ -1957,6 +1957,10 @@ contains
 
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+          if (config_use_ecosysTracers) then
+            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
+            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
+          end if 
 
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
@@ -2060,14 +2064,14 @@ contains
                   ecosysTracers(index_DIC,:,iCell), particleDIC)
                 !call mpas_log_write('done testing output for DIC')
               end if
-              
+
               if (config_AM_lagrPartTrack_sample_ALK) then
                 !call mpas_log_write('testing output for ALK')
                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                   ecosysTracers(index_ALK,:,iCell), particleALK)
                 !call mpas_log_write('done testing output for ALK')
               end if
-            end if 
+            end if
           end if
 
           ! get next particle to process on the list
