@@ -313,10 +313,10 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       logical, pointer :: config_AM_lagrPartTrack_sample_temperature
-      real (kind=RKIND), pointer :: temperature
+      real (kind=RKIND), pointer :: particleTemperature
 
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
-      real (kind=RKIND), pointer :: salinity
+      real (kind=RKIND), pointer :: particleSalinity
 
       REAL (kind=RKIND), parameter :: eps=1e-12
 
@@ -506,8 +506,8 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'currentCellGlobalID', currentCellGlobalID)
 
           ! sampling variables
-          call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
-          call mpas_pool_get_array(particle % haloDataPool, 'salinity', salinity)
+          call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
@@ -810,14 +810,14 @@ contains
              if (config_AM_lagrPartTrack_sample_temperature) then
               !call mpas_log_write(' testing output for temperature')
               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                activeTracers(index_temperature,:,iCell), temperature)
+                activeTracers(index_temperature,:,iCell), particleTemperature)
               !call mpas_log_write('done testing output for temperature')
              end if
 
              if (config_AM_lagrPartTrack_sample_salinity) then
               !call mpas_log_write(' testing output for salinity')
               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                activeTracers(index_salinity,:,iCell), salinity)
+                activeTracers(index_salinity,:,iCell), particleSalinity)
               !call mpas_log_write('done testing output for salinity')
              end if
            end if
@@ -1797,9 +1797,9 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer, pointer :: index_temperature, index_salinity
       logical, pointer :: config_AM_lagrPartTrack_sample_temperature
-      real (kind=RKIND), pointer :: temperature
+      real (kind=RKIND), pointer :: particleTemperature
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
-      real (kind=RKIND), pointer :: salinity
+      real (kind=RKIND), pointer :: particleSalinity
 
       err = 0
 
@@ -1889,8 +1889,8 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'buoyancyParticle', buoyancyParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
 
-          call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
-          call mpas_pool_get_array(particle % haloDataPool, 'salinity', salinity)
+          call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
@@ -1967,14 +1967,14 @@ contains
             if (config_AM_lagrPartTrack_sample_temperature) then
              !call mpas_log_write(' testing output for temperature')
              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-               activeTracers(index_temperature,:,iCell), temperature)
+               activeTracers(index_temperature,:,iCell), particleTemperature)
              !call mpas_log_write('done testing output for temperature')
             end if
 
             if (config_AM_lagrPartTrack_sample_salinity) then
              !call mpas_log_write(' testing output for salinity')
              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-               activeTracers(index_salinity,:,iCell), salinity)
+               activeTracers(index_salinity,:,iCell), particleSalinity)
              !call mpas_log_write('done testing output for salinity')
             end if
           end if
