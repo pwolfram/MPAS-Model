@@ -1833,7 +1833,7 @@ contains
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
 
-      real (kind=RKIN), dimension(:,:,:), pointer :: ecosysTracers
+      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
                           index_ALK
