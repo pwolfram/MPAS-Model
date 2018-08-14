@@ -855,7 +855,8 @@ contains
                    ecosysTracers(index_ALK,:,iCell), particleALK)
                  !call mpas_log_write('done testing output for ALK')
                end if
-           end if 
+             end if 
+           end if
 
 !          ! compute necessary information for autocorrelation !{{{
 !          ! get the updated velocity
@@ -2037,8 +2038,8 @@ contains
                   ecosysTracers(index_ALK,:,iCell), particleALK)
                 !call mpas_log_write('done testing output for ALK')
               end if
-          end if 
-
+            end if 
+          end if
 
           ! get next particle to process on the list
           particlelist => particlelist % next
