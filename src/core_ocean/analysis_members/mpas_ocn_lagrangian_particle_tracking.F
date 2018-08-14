@@ -309,7 +309,9 @@ contains
       integer :: err_tmp
 
       ! sampling variables
-      integer, pointer :: index_temperature, index_salinity
+      ! active tracers
+      integer, pointer :: index_temperature, &
+                          index_salinity
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       logical, pointer :: config_AM_lagrPartTrack_sample_temperature
@@ -317,7 +319,21 @@ contains
 
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
+      
+      ! BGC tracers
+      logical, pointer :: config_use_ecosysTracers
+      integer, pointer :: index_DIC, &
+                          index_ALK
+      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers 
 
+      ! DIC
+      logical, pointer :: config_AM_lagrPartTrack_sample_DIC
+      real (kind=RKIND), pointer :: particleDIC
+
+      ! ALK
+      logical, pointer :: config_AM_lagrPartTrack_sample_ALK
+      real (kind=RKIND), pointer :: particleALK
+  
       REAL (kind=RKIND), parameter :: eps=1e-12
 
 
@@ -340,7 +356,10 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_timeIntegration', timeIntegration)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
-
+      call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_DIC', config_AM_lagrPartTrack_sample_DIC)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_ALK', config_AM_lagrPartTrack_sample_ALK)
+       
       if (trim(config_AM_lagrPartTrack_reset_criteria) == 'none') then
         config_AM_lagrPartTrack_reset_particles = .False.
       else
@@ -401,6 +420,11 @@ contains
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
         call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
         call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
+        if (config_use_ecosysTracers) then
+          call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
+          call mpas_pool_get_dimension(tracersPool, 'index_DIC', index_DIC)
+          call mpas_pool_get_dimension(tracersPool, 'index_ALK', index_ALK)
+        end if
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
@@ -508,6 +532,11 @@ contains
           ! sampling variables
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+          if (config_use_ecosysTracers) then
+            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
+            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
+          end if
+          
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'sumU', sumU)
@@ -821,6 +850,24 @@ contains
               !call mpas_log_write('done testing output for salinity')
              end if
            end if
+
+           if (config_use_ecosysTracers) then
+             call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
+             if ( associated(ecosysTracers) ) then
+               if (config_AM_lagrPartTrack_sample_DIC) then
+                 !call mpas_log_write('testing output for DIC')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_DIC,:,iCell), particleDIC)
+                 !call mpas_log_write('done testing output for DIC')
+               end if
+               
+               if (config_AM_lagrPartTrack_sample_ALK) then
+                 !call mpas_log_write('testing output for ALK')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_ALK,:,iCell), particleALK)
+                 !call mpas_log_write('done testing output for ALK')
+               end if
+           end if 
 
 !          ! compute necessary information for autocorrelation !{{{
 !          ! get the updated velocity
@@ -1801,10 +1848,22 @@ contains
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
 
+      real (kind=RKIN), dimension(:,:,:), pointer :: ecosysTracers
+      logical, pointer :: config_use_ecosysTracers
+      integer, pointer :: index_DIC, &
+                          index_ALK
+      logical, pointer :: config_AM_lagrPartTrack_sample_DIC
+      real (kind=RKIND), pointer :: particleDIC
+      logical, pointer :: config_AM_lagrPartTrack_sample_ALK
+      real (kind=RKIND), pointer :: particleALK
+
       err = 0
 
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_DIC', config_AM_lagrPartTrack_sample_DIC)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_ALK', config_AM_lagrPartTrack_sample_ALK)
 
       dminfo = domain % dminfo
 
@@ -1843,6 +1902,11 @@ contains
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel=timeLevel)
         call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
         call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
+        if (config_use_ecosysTracers) then
+          call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel=timeLevel)
+          call mpas_pool_get_dimension(tracersPool, 'index_DIC', index_DIC)
+          call mpas_pool_get_dimension(tracersPool, 'index_ALK', index_ALK)
+        end if 
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
@@ -1891,6 +1955,10 @@ contains
 
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+          if (config_use_ecosysTracers) then
+            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
+            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
+          end if 
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
 !          call mpas_pool_get_array(particle % haloDataPool, 'latVel', latVel)
@@ -1978,6 +2046,25 @@ contains
              !call mpas_log_write('done testing output for salinity')
             end if
           end if
+
+          if (config_use_ecosysTracers) then
+            call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
+            if ( associated(ecosysTracers) ) then
+              if (config_AM_lagrPartTrack_sample_DIC) then
+                !call mpas_log_write('testing output for DIC')
+                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                  ecosysTracers(index_DIC,:,iCell), particleDIC)
+                !call mpas_log_write('done testing output for DIC')
+              end if
+              
+              if (config_AM_lagrPartTrack_sample_ALK) then
+                !call mpas_log_write('testing output for ALK')
+                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                  ecosysTracers(index_ALK,:,iCell), particleALK)
+                !call mpas_log_write('done testing output for ALK')
+              end if
+          end if 
+
 
           ! get next particle to process on the list
           particlelist => particlelist % next
