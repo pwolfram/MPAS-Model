@@ -855,7 +855,8 @@ contains
                    ecosysTracers(index_ALK,:,iCell), particleALK)
                  !call mpas_log_write('done testing output for ALK')
                end if
-           end if 
+             end if 
+           end if
 
 !          ! compute necessary information for autocorrelation !{{{
 !          ! get the updated velocity
@@ -1832,7 +1833,7 @@ contains
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
       real (kind=RKIND), pointer :: particleSalinity
 
-      real (kind=RKIN), dimension(:,:,:), pointer :: ecosysTracers
+      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
                           index_ALK
@@ -2037,8 +2038,8 @@ contains
                   ecosysTracers(index_ALK,:,iCell), particleALK)
                 !call mpas_log_write('done testing output for ALK')
               end if
-          end if 
-
+            end if 
+          end if
 
           ! get next particle to process on the list
           particlelist => particlelist % next
