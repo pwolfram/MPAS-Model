@@ -336,11 +336,17 @@
 			 description="flag to monitor if the particle was transfered"
 		/>
 <!-- TEMP FIELDS THAT NEED MOVED TO NonHalo below after verifying interpolation is correct -->
-		<var name="temperature" type="real" dimensions="nParticles Time" units="kg m^{-3}"
+		<var name="particleTemperature" type="real" dimensions="nParticles Time" units="degrees Celsius"
 			 description="sampled temperature for particle"
 		/>
-		<var name="salinity" type="real" dimensions="nParticles Time" units="kg m^{-3}"
+		<var name="particleSalinity" type="real" dimensions="nParticles Time" units="grams salt per kilogram seawater"
 			 description="sampled salinity for particle"
+        />
+        <var name="particleDIC" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic carbon for particle"
+		/>
+        <var name="particleALK" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled alkalinity for particle"
 		/>
 	</var_struct>
 <!--
