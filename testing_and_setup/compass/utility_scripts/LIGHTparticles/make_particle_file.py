@@ -340,19 +340,41 @@ def build_isopycnal_particles(xCell, yCell, zCell, buoysurf, afilter): #{{{
     return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf, spatialfilter=afilter) #}}}
 
 
-def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter): #{{{
+def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter, vertseedtype): #{{{
 
     x = expand_nlevels(xCell, nvertlevels)
     y = expand_nlevels(yCell, nvertlevels)
     z = expand_nlevels(zCell, nvertlevels)
     f_init = netCDF4.Dataset(f_init,'r')
-    zlevel = -np.kron(np.linspace(0,1,nvertlevels+2)[1:-1], f_init.variables['bottomDepth'][:])
+    if vertseedtype == 'linear':
+        wgts = np.linspace(0, 1, nvertlevels+2)[1:-1]
+    elif vertseedtype == 'log':
+        wgts = np.geomspace(1/(nvertlevels-1), 1, nvertlevels+1)[0:-1]
+    elif vertseedtype == 'denseCenter':
+        wgts = dense_center_seeding(nvertlevels)
+    else:
+        raise ValueError("Must designate `vertseedtype` as one of the following: ['linear', 'log', 'denseCenter']")
+    zlevel = -np.kron(wgts, f_init.variables['bottomDepth'][:])
     cellindices = np.tile(np.arange(len(xCell)), (nvertlevels))
     f_init.close()
 
-
     return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
 
+def dense_center_seeding(nVert): #{{{
+    """
+    Distributes passive floats with 50% of them occurring between 40% and 60%
+    of the bottom depth.
+    """
+    nMid = np.ceil((1/2) * nVert)
+    nRem = nVert - nMid
+    if nRem % 2 != 0:
+        nMid += 1
+        nRem -= 1
+    upper = np.linspace(0, 0.4, (int(nRem) // 2) + 1)
+    center = np.linspace(0.4, 0.6, int(nMid) + 2)
+    lower = np.linspace(0.6, 1, (int(nRem) // 2) + 1)
+    c_wgts = np.concatenate([upper[1:], center[1:-1], lower[0:-1]])
+    return c_wgts
 
 def build_surface_floats(xCell, yCell, zCell, afilter): #{{{
 
@@ -364,7 +386,7 @@ def build_surface_floats(xCell, yCell, zCell, afilter): #{{{
     return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0, spatialfilter=afilter) #}}}
 
 
-def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels, downsample): #{{{
+def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels, downsample, vertseedtype): #{{{
 
     xCell, yCell, zCell = cell_centers(f_init, downsample)
 
@@ -373,7 +395,7 @@ def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf
     if 'buoyancy' in types or 'all' in types:
         particlelist.append(build_isopycnal_particles(xCell, yCell, zCell, buoySurf, spatialfilter))
     if 'passive' in types or 'all' in types:
-        particlelist.append(build_passive_floats(xCell, yCell, zCell, f_init, nVertLevels, spatialfilter ))
+        particlelist.append(build_passive_floats(xCell, yCell, zCell, f_init, nVertLevels, spatialfilter, vertseedtype))
     # apply surface particles everywhere to ensure that LIGHT works
     # (allow for some load-imbalance for filters)
     if 'surface' in types or 'all' in types:
@@ -415,6 +437,10 @@ if __name__ == "__main__":
             default=10,
             help="Number of vertical levels for passive, 3D floats",
             metavar="INT")
+    parser.add_argument("--vertseedtype", dest="vertseedtype",
+            default="linear",
+            help="Method for seeding in the vertical",
+            metavar="One of ['linear', 'log', 'denseCenter']")
     parser.add_argument("--nbuoysurf", dest="nbuoysurf",
             default=11,
             help="Number of buoyancy surfaces for isopycnally-constrained particles",
@@ -454,7 +480,7 @@ if __name__ == "__main__":
         print('Building particle file...')
         build_particle_file(args.init, args.particles, args.graph, args.types, args.spatialfilter,
                 np.linspace(args.potdensmin, args.potdensmax, int(args.nbuoysurf)), int(args.nvertlevels),
-                int(args.downsample))
+                int(args.downsample), args.vertseedtype)
         print('Done building particle file')
     else:
         print('Remapping particles...')
