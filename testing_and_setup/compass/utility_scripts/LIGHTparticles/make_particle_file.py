@@ -149,10 +149,12 @@ class Particles(): #{{{
 
         # start with all the indicies and restrict
         ids = np.arange(len(x))
+        if type(spatialfilter) is str:
+            spatialfilter = [spatialfilter]
         if spatialfilter:
-            if 'SouthernOceanXYZ' in spatialfilter:
+            if np.max(['SouthernOceanXYZ' == afilter for afilter in spatialfilter]):
                 ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_xyz(x,y,z)])
-            if 'SouthernOceanXY' in spatialfilter:
+            if np.max(['SouthernOceanPlanar' == afilter for afilter in spatialfilter]):
                 ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_planar(x,y,z)])
 
         self.x = x[ids]
@@ -427,7 +429,7 @@ if __name__ == "__main__":
             metavar="INT")
     parser.add_argument("--spatialfilter", dest="spatialfilter",
             default=None,
-            help="Apply a certain type of spatial filter, e.g., 'SouthernOcean'",
+            help="Apply a certain type of spatial filter, e.g., ['SouthernOceanPlanar', 'SouthernOceanXYZ']",
             metavar="STRING")
     parser.add_argument("--remap", dest="remap",
             action="store_true",
