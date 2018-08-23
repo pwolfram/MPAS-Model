@@ -1,0 +1,22 @@
+	<nml_record name="gaussian_wave" mode="init" configuration=="gaussian_wave">
+		<nml_option name="config_gaussian_wave_vert_levels" type="integer" default_value="10" units="unitless"
+			description="Number of vertical levels in gaussian_wave. Typical value is 10."
+			possible_values="Any positive integer number greater than 0."
+		/>
+		<nml_option name="config_gaussian_wave_lon_center" type="real" default_value="286.0" units="degrees"
+			description="Longitude of center of gaussian wave."
+			possible_values="Any real number between 0.0 and 360.0."
+		/>
+		<nml_option name="config_gaussian_wave_lat_center" type="real" default_value="38.0" units="degrees"
+			description="Latitude of center of gaussian wave."
+			possible_values="Any real number between -90.0 and 90.0."
+		/>
+		<nml_option name="config_gaussian_wave_width" type="real" default_value="1.0" units="degrees"
+			description="Width scale of gaussian wave."
+			possible_values="Any real number greater than 0.0"
+		/>
+		<nml_option name="config_gaussian_wave_amplitude" type="real" default_value="1.0" units="m"
+			description="Amplitude of gaussian wave."
+			possible_values="Any real number greater than 0.0"
+		/>
+	</nml_record>

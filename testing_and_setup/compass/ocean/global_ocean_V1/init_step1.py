@@ -132,10 +132,11 @@ if options.with_critical_passages:
 
     # Cull the mesh based on the land mask while keeping critical passages open
     # Run command is:
-    # ./MpasCellCuller.x  base_mesh.nc culled_mesh.nc -m land_mask_final.nc
+    # ./MpasCellCuller.x  base_mesh.nc culled_mesh.nc -m land_mask_final.nc -p base_mesh.nc
     # -p critical_passages_mask.nc
     args = ['./MpasCellCuller.x', 'base_mesh.nc', 'culled_mesh.nc',
-            '-m', 'land_mask_final.nc', '-p', 'critical_passages_mask.nc']
+            '-m', 'land_mask_final.nc', '-p', 'critical_passages_mask.nc',
+            '-p', 'base_mesh.nc']
     print "running", ' '.join(args)
     subprocess.check_call(args, env=os.environ.copy())
 else:
@@ -144,7 +145,7 @@ else:
     # Run command is:
     # ./MpasCellCuller.x  base_mesh.nc culled_mesh.nc -m land_mask_final.nc
     args = ['./MpasCellCuller.x', 'base_mesh.nc', 'culled_mesh.nc',
-            '-m', 'land_mask_final.nc']
+            '-m', 'land_mask_final.nc', '-p', 'base_mesh.nc']
     print "running", ' '.join(args)
     subprocess.check_call(args, env=os.environ.copy())
 

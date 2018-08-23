@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<config case="forward">
+	<add_link source="../init/ocean.nc" dest="input.nc"/>
+	<add_link source="../init/graph.info" dest="graph.info"/>
+
+	<add_executable source="model" dest="ocean_model"/>
+	<add_executable source="metis" dest="metis"/>
+
+	<namelist name="namelist.ocean" mode="forward">
+		<option name="config_run_duration">'01:00:00'</option>
+		<option name="config_dt">'00:01:00'</option>
+		<option name="config_btr_dt">'0000_00:00:20'</option>
+		<option name="config_mom_del4">2.0e11</option>
+	</namelist>
+
+	<streams name="streams.ocean" keep="immutable" mode="forward">
+		<template file="output.xml" path_base="script_core_dir" path="templates/streams"/>
+		<stream name="output">
+			<attribute name="output_interval">0000_00:00:40</attribute>
+		</stream>
+		<stream name="mesh">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
+		<stream name="input">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
+		<stream name="output_init">
+			<attribute name="type">output</attribute>
+			<attribute name="output_interval">0000_00:00:01</attribute>
+			<attribute name="clobber_mode">truncate</attribute>
+			<attribute name="filename_template">ocean.nc</attribute>
+			<add_contents>
+				<member name="input_init" type="stream"/>
+				<member name="tracers" type="var_struct"/>
+				<member name="refZMid" type="var"/>
+				<member name="normalVelocity" type="var"/>
+				<member name="layerThickness" type="var"/>
+				<member name="restingThickness" type="var"/>
+				<member name="seaIcePressure" type="var"/>
+				<member name="atmosphericPressure" type="var"/>
+				<member name="boundaryLayerDepth" type="var"/>
+				<member name="refBottomDepth" type="var"/>
+				<member name="bottomDepth" type="var"/>
+				<member name="bottomDepthObserved" type="var"/>
+				<member name="oceanFracObserved" type="var"/>
+				<member name="maxLevelCell" type="var"/>
+				<member name="vertCoordMovementWeights" type="var"/>
+				<member name="edgeMask" type="var"/>
+				<member name="cullCell" type="var"/>
+				<member name="landIceDraftObserved" type="var"/>
+				<member name="landIceThkObserved" type="var"/>
+				<member name="landIceFracObserved" type="var"/>
+				<member name="landIceGroundedFracObserved" type="var"/>
+				<member name="landIceFraction" type="var"/>
+				<member name="landIceMask" type="var"/>
+				<member name="landIcePressure" type="var"/>
+				<member name="landIceDraft" type="var"/>
+				<member name="ssh" type="var"/>
+				<member name="modifySSHMask" type="var"/>
+				<member name="rx1Cell" type="var"/>
+				<member name="rx1Edge" type="var"/>
+				<member name="rx1MaxCell" type="var"/>
+				<member name="rx1MaxEdge" type="var"/>
+				<member name="globalRx1Max" type="var"/>
+				<member name="density" type="var"/>
+				<member name="rx1InitSmoothingMask" type="var"/>
+				<member name="verticalStretch" type="var"/>
+			</add_contents>
+		</stream>
+	</streams>
+
+	<run_script name="run.py">
+		<step executable="./metis">
+			<argument flag="graph.info">6</argument>
+		</step>
+		<model_run procs="6" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+	</run_script>
+</config>

@@ -44,6 +44,10 @@ module ocn_init_mode
    use ocn_init_lock_exchange
    use ocn_init_internal_waves
    use ocn_init_overflow
+   use ocn_init_gaussian_wave
+   use ocn_init_onshore_wave
+   use ocn_init_drying_slope
+   use ocn_init_spreading_mound
    use ocn_init_global_ocean
    use ocn_init_cvmix_WSwSBF
    use ocn_init_iso
@@ -270,6 +274,10 @@ module ocn_init_mode
       call ocn_init_setup_lock_exchange(domain, ierr)
       call ocn_init_setup_internal_waves(domain, ierr)
       call ocn_init_setup_overflow(domain, ierr)
+      call ocn_init_setup_gaussian_wave(domain, ierr)
+      call ocn_init_setup_onshore_wave(domain, ierr)
+      call ocn_init_setup_drying_slope(domain, ierr)
+      call ocn_init_setup_spreading_mound(domain, ierr)
       call ocn_init_setup_global_ocean(domain, ierr)
       call ocn_init_setup_cvmix_WSwSBF(domain, ierr)
       call ocn_init_setup_iso(domain, ierr)
@@ -362,6 +370,14 @@ module ocn_init_mode
       call ocn_init_validate_internal_waves(configPool, packagePool, iocontext, iErr=err_tmp)
       iErr = ior(iErr, err_tmp)
       call ocn_init_validate_overflow(configPool, packagePool, iocontext, iErr=err_tmp)
+      iErr = ior(iErr, err_tmp)
+      call ocn_init_validate_gaussian_wave(configPool, packagePool, iocontext, iErr=err_tmp)
+      iErr = ior(iErr, err_tmp)
+      call ocn_init_validate_onshore_wave(configPool, packagePool, iocontext, iErr=err_tmp)
+      iErr = ior(iErr, err_tmp)
+      call ocn_init_validate_drying_slope(configPool, packagePool, iocontext, iErr=err_tmp)
+      iErr = ior(iErr, err_tmp)
+      call ocn_init_validate_spreading_mound(configPool, packagePool, iocontext, iErr=err_tmp)
       iErr = ior(iErr, err_tmp)
       call ocn_init_validate_global_ocean(configPool, packagePool, iocontext, iErr=err_tmp)
       iErr = ior(iErr, err_tmp)

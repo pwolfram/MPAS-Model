@@ -10,8 +10,11 @@ UTILS = mpas_ocn_init_spherical_utils.o \
 
 TEST_CASES = mpas_ocn_init_baroclinic_channel.o \
              mpas_ocn_init_lock_exchange.o \
+             mpas_ocn_init_drying_slope.o \
+             mpas_ocn_init_spreading_mound.o \
              mpas_ocn_init_internal_waves.o \
              mpas_ocn_init_overflow.o \
+             mpas_ocn_init_onshore_wave.o \
              mpas_ocn_init_cvmix_WSwSBF.o \
              mpas_ocn_init_iso.o \
              mpas_ocn_init_soma.o \
@@ -20,6 +23,7 @@ TEST_CASES = mpas_ocn_init_baroclinic_channel.o \
              mpas_ocn_init_periodic_planar.o \
              mpas_ocn_init_ecosys_column.o \
              mpas_ocn_init_sea_mount.o \
+             mpas_ocn_init_gaussian_wave.o \
              mpas_ocn_init_global_ocean.o \
              mpas_ocn_init_isomip.o \
              mpas_ocn_init_isomip_plus.o \
@@ -55,6 +59,12 @@ mpas_ocn_init_lock_exchange.o: $(UTILS)
 mpas_ocn_init_internal_waves.o: $(UTILS)
 
 mpas_ocn_init_overflow.o: $(UTILS)
+
+mpas_ocn_init_gaussian_wave.o: $(UTILS)
+
+mpas_ocn_init_onshore_wave.o: $(UTILS)
+
+mpas_ocn_init_drying_slope.o: $(UTILS)
 
 mpas_ocn_init_global_ocean.o: $(UTILS)
 

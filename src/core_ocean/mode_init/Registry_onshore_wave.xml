@@ -1,0 +1,83 @@
+	<nml_record name="onshore_wave" mode="init" configuration="onshore_wave">
+		<nml_option name="config_onshore_wave_use_distances" type="logical" default_value="false" units="unitless"
+			description="Logical flag that determines if locations of features are defined by distances or fractions. False means fractions."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_onshore_wave_vert_levels" type="integer" default_value="100" units="unitless"
+			description="Number of vertical levels in onshore_wave test case. Typical values are 40 and 100."
+			possible_values="Any positive integer number greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_layer_type" type="character" default_value="z-level" units="unitless"
+			description="Logical flag that controls how the initial conditions should be generated."
+			possible_values="'z-level', 'sigma', 'isopycnal'"
+		/>
+		<nml_option name="config_onshore_wave_isopycnal_min_thickness" type="real" default_value="0.01" units="m"
+			description="minimum layer thickness"
+			possible_values="Any positive real number, typically 0.01 to 1.0"
+		/>
+		<nml_option name="config_onshore_wave_ridge_depressionwave_center_frac" type="real" default_value="0.50" units="fraction"
+			description="Location of center of transition to sea surface height depression."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_ridge_depressionwave_width_frac" type="real" default_value="0.10" units="fraction"
+			description="Width of transition region to sea surface height depression."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_ridge_depressionwave_center_dist" type="real" default_value="100e3" units="m"
+			description="Location of center of transition to sea surface height depression."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_ridge_depressionwave_width_dist" type="real" default_value="30e3" units="m"
+			description="Width of transition region to sea surface height depression."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_ridge_depressionwave_amplitude" type="real" default_value="10.0" units="m"
+			description="Amplitude of the depression wave offshore away from shelf."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_bottom_depth" type="real" default_value="2000.0" units="m"
+			description="Depth of the bottom of the ocean in the onshore_wave test case."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_ridge_depth" type="real" default_value="20.0" units="m"
+			description="Depth of the bottom of the ocean on the ridge in the over flow test case."
+			possible_values="Any positive real value greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_slope_center_frac" type="real" default_value="0.20" units="fraction"
+			description="Location of the center of the slope. Given as a fraction of the total y domain range. Position is relative to the minimum y value."
+			possible_values="Any real number between 0 and 1."
+		/>
+		<nml_option name="config_onshore_wave_slope_width_frac" type="real" default_value="0.05" units="fraction"
+			description="Half width of the slope. Given as a fraction of the total y domain range."
+			possible_values="Any real number between 0 and 1."
+		/>
+		<nml_option name="config_onshore_wave_slope_center_dist" type="real" default_value="40e3" units="m"
+			description="Location of the center of the slope. Given as a distance from the minimum y value. Default is relative to a 200km domain."
+			possible_values="Any positive real number."
+		/>
+		<nml_option name="config_onshore_wave_slope_width_dist" type="real" default_value="7e3" units="m"
+			description="Half width of the slope. Default is relative to a 200km domain."
+			possible_values="Any positive real number."
+		/>
+		<nml_option name="config_onshore_wave_salinity" type="real" default_value="35.0" units="PSU"
+			description="Salinity of the water in the entire domain."
+			possible_values="Any real number greater than 0."
+		/>
+		<nml_option name="config_onshore_wave_domain_temperature" type="real" default_value="20.0" units="deg C"
+			description="Temperature of water outside of the plug."
+			possible_values="Any real number"
+		/>
+		<nml_option name="config_onshore_wave_plug_temperature" type="real" default_value="20.0" units="deg C"
+			description="Temperature of water in plug at the southern end of the domain."
+			possible_values="Any real number"
+		/>
+		<nml_option name="config_onshore_wave_plug_width_frac" type="real" default_value="0.10" units="fraction"
+			description="Fraction of the domain the plug should take up initially. Only in the y direction."
+			possible_values="Any real number between 0 and 1."
+		/>
+		<nml_option name="config_onshore_wave_plug_width_dist" type="real" default_value="20e3" units="m"
+			description="Distance from the minimum Y value of the domain the plug should take up initially. Default is relative to a 200km domain."
+			possible_values="Any positive real number."
+		/>
+	</nml_record>
+

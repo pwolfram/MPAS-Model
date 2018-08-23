@@ -31,6 +31,7 @@ module ocn_time_integration_split
    use mpas_threading
    use mpas_timekeeping
    use mpas_log
+   use mpas_io_units
 
    use ocn_tendency
    use ocn_diagnostics
@@ -39,6 +40,7 @@ module ocn_time_integration_split
    use ocn_equation_of_state
    use ocn_vmix
    use ocn_time_average_coupled
+   use ocn_wetting_drying
 
    use ocn_effective_density_in_land_ice
 
@@ -122,7 +124,7 @@ module ocn_time_integration_split
       real (kind=RKIND), dimension(:), pointer :: btrvel_temp
       type (field1DReal), pointer :: btrvel_tempField
       real (kind=RKIND), dimension(:,:), allocatable:: tracersTemp
-      logical :: activeTracersOnly ! if true only compute tendencies for active tracers  
+      logical :: activeTracersOnly ! if true only compute tendencies for active tracers
       integer :: tsIter
       integer :: edgeHaloComputeCounter, cellHaloComputeCounter
       integer :: neededHalos
@@ -142,11 +144,18 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
+      logical, pointer :: config_debug_split_explicit
+      logical, pointer :: config_use_wetting_drying
+      logical, pointer :: config_verify_not_dry
+      logical, pointer :: config_prevent_drying
+      logical, pointer :: config_zero_drying_velocity
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
       real (kind=RKIND), pointer :: config_mom_del4, config_btr_gam1_velWt1, config_btr_gam2_SSHWt1
       real (kind=RKIND), pointer :: config_btr_gam3_velWt2
+      real (kind=RKIND), pointer :: config_drying_min_cell_height
+      character (len=StrKIND), pointer :: config_thickness_flux_type
 
       ! Dimensions
       integer :: nCells, nEdges
@@ -194,6 +203,7 @@ module ocn_time_integration_split
       real (kind=RKIND), dimension(:), pointer :: gradSSHX, gradSSHY, gradSSHZ
       real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
       real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, SSHGradient
+      real (kind=RKIND), dimension(:), pointer :: barotropicWettingVelocity
 
       ! Diagnostics Field Pointers
       type (field2DReal), pointer :: normalizedRelativeVorticityEdgeField, divergenceField, relativeVorticityField
@@ -253,10 +263,17 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_use_standardGM', config_use_standardGM)
       call mpas_pool_get_config(domain % configs, 'config_use_cvmix_kpp', config_use_cvmix_kpp)
       call mpas_pool_get_config(domain % configs, 'config_land_ice_flux_mode', config_land_ice_flux_mode)
+      call mpas_pool_get_config(domain % configs, 'config_use_wetting_drying', config_use_wetting_drying)
+      call mpas_pool_get_config(domain % configs, 'config_prevent_drying', config_prevent_drying)
+      call mpas_pool_get_config(domain % configs, 'config_verify_not_dry', config_verify_not_dry)
+      call mpas_pool_get_config(domain % configs, 'config_zero_drying_velocity', config_zero_drying_velocity)
+      call mpas_pool_get_config(domain % configs, 'config_drying_min_cell_height', config_drying_min_cell_height)
+      call mpas_pool_get_config(ocnConfigs, 'config_thickness_flux_type', config_thickness_flux_type)
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -391,6 +408,7 @@ module ocn_time_integration_split
          end if
 
          call mpas_timer_start('se loop')
+         call mpas_log_write('se loop $i', intArgs=(/split_explicit_step/))
 
          stage1_tend_time = min(split_explicit_step,2)
 
@@ -483,6 +501,7 @@ module ocn_time_integration_split
 
          ! compute velocity tendencies, T(u*,w*,p*)
          call mpas_timer_start("se bcl vel")
+         call mpas_log_write("se bcl vel start")
 
          call mpas_timer_start('se bcl vel tend')
          block => domain % blocklist
@@ -505,11 +524,14 @@ module ocn_time_integration_split
 
            call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
-           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time)
+           call mpas_log_write('before ocn_tend_vel')
+           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt)
+           call mpas_log_write('after ocn_tend_vel')
 
            block => block % next
          end do
          call mpas_timer_stop('se bcl vel tend')
+         call mpas_log_write('se bcl vel tend')
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! BEGIN baroclinic iterations on linear Coriolis term
@@ -623,6 +645,7 @@ module ocn_time_integration_split
          call mpas_timer_stop('se halo barotropicForcing')
 
          call mpas_timer_stop("se bcl vel")
+         call mpas_log_write("se bcl vel")
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! END baroclinic iterations on linear Coriolis term
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -638,7 +661,7 @@ module ocn_time_integration_split
          oldBtrSubcycleTime = 1
          newBtrSubcycleTime = 2
 
-         if (trim(config_time_integrator) == 'unsplit_explicit') then
+         if (trim(config_time_integrator) == 'unsplit_explicit') then !{{{
 
             call mpas_timer_start('btr vel ue')
             block => domain % blocklist
@@ -685,7 +708,7 @@ module ocn_time_integration_split
                block => block % next
             end do  ! block
             call mpas_timer_stop('btr vel ue')
-
+!}}}
          elseif (trim(config_time_integrator) == 'split_explicit') then
 
             ! Initialize variables for barotropic subcycling
@@ -763,6 +786,7 @@ module ocn_time_integration_split
             call mpas_threading_barrier()
 
             call mpas_timer_start('btr se subcycle loop')
+            call mpas_log_write('btr se subcycle loop')
             do j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
                if(cellHaloComputeCounter < neededHalos) then
 
@@ -842,12 +866,15 @@ module ocn_time_integration_split
                   end do  ! block
               endif ! config_btr_gam1_velWt1>1.0e-12
 
+              ! what is normalBarotropicVelocitySubcycleNew if config_btr_gam1_velWt1 < 1.0e-12?  Seems like there is a potential problem here...
+
               ! 1 Halo from edges is corrupted here, so reduce the edge halo layers by 1
               edgeHaloComputeCounter = edgeHaloComputeCounter - 1
 
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               ! Barotropic subcycle: SSH PREDICTOR STEP
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+              call mpas_log_write('Barotropic subcycle: SSH PREDICTOR STEP')
               block => domain % blocklist
               do while (associated(block))
                 call mpas_pool_get_dimension(block % dimensions, 'nCells', nCellsPtr)
@@ -882,6 +909,7 @@ module ocn_time_integration_split
                                             newBtrSubcycleTime)
 
                 call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+                call mpas_pool_get_array(diagnosticsPool, 'barotropicWettingVelocity', barotropicWettingVelocity)
 
                 nCells = nCellsPtr
                 nEdges = nEdgesPtr
@@ -894,7 +922,19 @@ module ocn_time_integration_split
                 ! config_btr_gam1_velWt1=0.5     flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H
                 ! config_btr_gam1_velWt1=  0     flux = normalBarotropicVelocityOld*H
 
-                !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshEdge, thicknessSum, flux)
+                ! prevent drying over entire column by use of non-zero wettingVelocity below
+                if (config_use_wetting_drying .and. config_prevent_drying) then
+                  if (config_btr_solve_SSH2) then
+                    call mpas_log_write(' Warning! SSH corrector step requested but not implemented for wetting / drying!', MPAS_LOG_CRIT)
+                  end if
+                  ! note, assumes that thicknessSum and flux computations are equivalent with code below
+                  call ocn_prevent_drying_split_explicit(meshPool, barotropicWettingVelocity, &
+                    dt, nBtrSubcycles, normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew, &
+                    sshSubcycleCur, config_btr_gam1_velWt1, config_zero_drying_velocity, err)
+                  
+                end if
+
+                !! !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshEdge, thicknessSum, flux)
                 do iCell = 1, nCells
                   sshTend(iCell) = 0.0_RKIND
                   do i = 1, nEdgesOnCell(iCell)
@@ -903,22 +943,22 @@ module ocn_time_integration_split
                     cell1 = cellsOnEdge(1, iEdge)
                     cell2 = cellsOnEdge(2, iEdge)
 
-                    sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2) )
+                    flux = (1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
+                      + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
 
-                   ! method 0: orig, works only without pbc:
-                   !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
+                    call ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+                      flux, sshSubcycleCur(cell1), sshSubcycleCur(cell2), bottomDepth(cell1), bottomDepth(cell2), &
+                      config_use_wetting_drying, config_thickness_flux_type)
 
-                   ! method 1, matches method 0 without pbcs, works with pbcs.
-                   thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
+                    !call mpas_log_write('barotropicWettingVelocity($i)=$r flux=$r thicknessSum=$r', realArgs=(/barotropicWettingVelocity(iEdge), flux, thicknessSum/), intArgs=(/iEdge/))
 
-                   ! method 2: may be better than method 1.
-                   ! Take average  of full thickness at two neighboring cells.
-                   !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
-
-
-                    flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                           * thicknessSum
+                    flux = flux + barotropicWettingVelocity(iEdge)
+                    !if (config_use_wetting_drying .and. config_zero_drying_velocity) then
+                    !  if (abs(barotropicWettingVelocity(iEdge)) > 0.0_RKIND) then 
+                    !    flux = 0.0_RKIND
+                    !  end if
+                    !end if
+                    flux = flux * thicknessSum
 
                     sshTend(iCell) = sshTend(iCell) + edgeSignOncell(i, iCell) * flux * dvEdge(iEdge)
 
@@ -928,7 +968,21 @@ module ocn_time_integration_split
                   sshSubcycleNew(iCell) = sshSubcycleCur(iCell) &
                                           + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
                 end do
-                !$omp end do
+                !! !$omp end do
+                !do iCell = 1, nCells
+                !  call mpas_log_write('debug $r', realArgs=(/sshSubcycleNew(iCell)/)) 
+                !end do
+
+                if (config_debug_split_explicit) then
+                  ! add in write statement for debugging to print to a standard text file (get single strip out) 4.000
+                  ! add in a new line each time for the write statement
+                  do iCell=1,nCells
+                    write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell)  ! 4 hard coded for an example for brevity of case
+                  end do
+                  write(debugSplitExplicitUnit, *) ' '
+                  !write(debugSplitExplicitUnit,*) sshSubcycleCur(:nCells:4)  ! 4 hard coded for an example for brevity of case
+                  flush(debugSplitExplicitUnit)
+                end if
 
                 !! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
 
@@ -939,7 +993,7 @@ module ocn_time_integration_split
                   ! section, because it will be accumulated in the SSH corrector section.
                   barotropicThicknessFlux_coeff = 0.0_RKIND
 
-                  ! othing else to do
+                  ! nothing else to do
 
                 else
 
@@ -951,14 +1005,15 @@ module ocn_time_integration_split
                      cell1 = cellsOnEdge(1,iEdge)
                      cell2 = cellsOnEdge(2,iEdge)
 
-                     sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))
+                     flux = (1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
+                       + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)
 
-                     ! method 1, matches method 0 without pbcs, works with pbcs.
-                     thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
+                     call ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+                       flux, sshSubcycleCur(cell1), sshSubcycleCur(cell2), bottomDepth(cell1), bottomDepth(cell2), &
+                       config_use_wetting_drying, config_thickness_flux_type)
 
-                     flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                            * thicknessSum
+                     flux = flux + barotropicWettingVelocity(iEdge)
+                     flux = flux * thicknessSum
 
                      barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
                   end do
@@ -971,6 +1026,25 @@ module ocn_time_integration_split
 
               ! 1 cell halo layer is now corrupted, so remove one from computing on.
               cellHaloComputeCounter = cellHaloComputeCounter - 1
+
+              ! verify that cells are not dry at conclusion of the time step
+              if (config_use_wetting_drying) then
+                call mpas_timer_start("Split explicit total- check wet cells")
+
+                ! ensure existing layerThickness is valid
+                if (config_verify_not_dry) then
+                  block => domain % blocklist
+                    do while (associated(block))
+                      call mpas_log_write('Checking that condition is met')
+                      call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
+                      block => block % next
+                    end do
+
+                end if
+
+                call mpas_timer_stop("Split explicit total- check wet cells")
+                call mpas_threading_barrier()
+              end if
 
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               ! Barotropic subcycle: VELOCITY CORRECTOR STEP
@@ -1073,6 +1147,9 @@ module ocn_time_integration_split
               ! Barotropic subcycle: SSH CORRECTOR STEP
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               if (config_btr_solve_SSH2) then
+                if (config_prevent_drying) then
+                  call mpas_log_write(' Warning! SSH corrector step requested but not vetted for wetting / drying!', MPAS_LOG_CRIT)
+                end if
 
                 block => domain % blocklist
                 do while (associated(block))
@@ -1119,6 +1196,14 @@ module ocn_time_integration_split
                    ! config_btr_gam3_velWt2=0.5     flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H
                    ! config_btr_gam3_velWt2=  0     flux = normalBarotropicVelocityOld*H
 
+                   ! prevent drying over entire column by use of non-zero wettingVelocity below
+                   if (config_use_wetting_drying .and. config_prevent_drying) then
+                     ! note, assumes that thicknessSum and flux computations are equivalent with code below
+                     call ocn_prevent_drying_split_explicit(meshPool, barotropicWettingVelocity, &
+                       dt, nBtrSubcycles, normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew, &
+                       sshSubcycleCur, config_btr_gam3_velWt2, config_zero_drying_velocity, err)
+                   end if
+
                    !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshCell1, sshCell2, sshEdge, thicknessSum, flux)
                    do iCell = 1, nCells
                      sshTend(iCell) = 0.0_RKIND
@@ -1128,27 +1213,19 @@ module ocn_time_integration_split
                        cell1 = cellsOnEdge(1,iEdge)
                        cell2 = cellsOnEdge(2,iEdge)
 
-                       ! SSH is a linear combination of SSHold and SSHnew.
-                       sshCell1 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell1) &
-                                 +   config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
-                       sshCell2 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell2) &
-                                 +   config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
-
-                       sshEdge = 0.5_RKIND * (sshCell1 + sshCell2)
-
-                      ! method 0: orig, works only without pbc:
-                      !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
-
-                      ! method 1, matches method 0 without pbcs, works with pbcs.
-                      thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-
-                      ! method 2: may be better than method 1.
-                      ! take average  of full thickness at two neighboring cells
-                      !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth (cell2) )
-
                        flux = ((1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                              + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                              * thicknessSum
+                              + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge))
+
+                       ! SSH is a linear combination of SSHold and SSHnew.
+                       sshCell1 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell1) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
+                       sshCell2 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell2) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
+
+                       call ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+                         flux, sshCell1, sshCell2, bottomDepth(cell1), bottomDepth(cell2), &
+                         config_use_wetting_drying, config_thickness_flux_type)
+
+                       flux = flux + barotropicWettingVelocity(iEdge)
+                       flux = flux * thicknessSum
 
                        sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux &
                               * dvEdge(iEdge)
@@ -1166,24 +1243,19 @@ module ocn_time_integration_split
                       cell1 = cellsOnEdge(1,iEdge)
                       cell2 = cellsOnEdge(2,iEdge)
 
+                      flux = (1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
+                             + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)
+
                       ! SSH is a linear combination of SSHold and SSHnew.
                       sshCell1 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell1) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
                       sshCell2 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell2) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
-                      sshEdge = 0.5_RKIND * (sshCell1 + sshCell2)
 
-                      ! method 0: orig, works only without pbc:
-                      !thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1)
+                      call ocn_wetting_drying_compute_barotropic_thickness_flux(thicknessSum, &
+                        flux, sshCell1, sshCell2, bottomDepth(cell1), bottomDepth(cell2), &
+                        config_use_wetting_drying, config_thickness_flux_type)
 
-                      ! method 1, matches method 0 without pbcs, works with pbcs.
-                      thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-
-                      ! method 2, better, I think.
-                      ! take average  of full thickness at two neighboring cells
-                      !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
-
-                      flux = ((1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                             + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                             * thicknessSum
+                      flux = flux + barotropicWettingVelocity(iEdge)
+                      flux = flux * thicknessSum
 
                       barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
                    end do
@@ -1238,6 +1310,7 @@ module ocn_time_integration_split
             call mpas_pool_get_subpool(domain % blocklist % structs, 'scratch', scratchPool)
             call mpas_pool_get_field(scratchPool, 'btrvel_temp', btrvel_tempField)
             call mpas_deallocate_scratch_field(btrvel_tempField, .false.)
+            call mpas_log_write('Finished barotropic subcycle loop!')
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! END Barotropic subcycle loop
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1274,6 +1347,7 @@ module ocn_time_integration_split
                block => block % next
             end do  ! block
             call mpas_timer_stop('btr se norm')
+            call mpas_log_write('btr se norm')
 
             call mpas_threading_barrier()
 
@@ -1380,10 +1454,12 @@ module ocn_time_integration_split
                block => block % next
             end do  ! block
             call mpas_timer_stop('btr se ssh verif')
+            call mpas_log_write('btr se ssh verif')
 
          endif ! split_explicit
 
          call mpas_timer_stop("se btr vel")
+         call mpas_log_write('se btr vel done')
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !
@@ -1441,6 +1517,7 @@ module ocn_time_integration_split
             block => block % next
          end do
          call mpas_timer_stop('se thick tend')
+         call mpas_log_write('se thick tend')
 
          call mpas_threading_barrier()
 
@@ -1471,6 +1548,7 @@ module ocn_time_integration_split
             block => block % next
          end do
          call mpas_timer_stop('se tracer tend')
+         call mpas_log_write('se tracer tend')
 
          call mpas_threading_barrier()
 
@@ -1647,7 +1725,7 @@ module ocn_time_integration_split
                         activeTracerHorizontalAdvectionTendency(:,k,iCell) = &
                            activeTracerHorizontalAdvectionTendency(:,k,iCell) / &
                            layerThicknessNew(k,iCell)
-        
+
                         activeTracerVerticalAdvectionTendency(:,k,iCell) = &
                            activeTracerVerticalAdvectionTendency(:,k,iCell) / &
                            layerThicknessNew(k,iCell)
@@ -1664,7 +1742,7 @@ module ocn_time_integration_split
                            activeTracerNonLocalTendency(:,k,iCell) / &
                            layerThicknessNew(k,iCell)
                      end do
-                  end do 
+                  end do
                   !$omp end do
                endif
 
@@ -1744,13 +1822,33 @@ module ocn_time_integration_split
 
          call mpas_timer_stop('se loop fini')
          call mpas_timer_stop('se loop')
+         call mpas_log_write('se loop here')
 
       end do  ! split_explicit_step = 1, config_n_ts_iter
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! END large iteration loop
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      ! verify that cells are not dry at conclusion of the time step
+      if (config_use_wetting_drying) then
+        call mpas_timer_start("Split explicit total- check wet cells")
+
+        ! ensure existing layerThickness is valid
+        if (config_verify_not_dry) then
+          block => domain % blocklist
+          do while (associated(block))
+            call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
+            block => block % next
+          end do
+
+        end if
+
+        call mpas_timer_stop("Split explicit total- check wet cells")
+        call mpas_threading_barrier()
+      end if
+
       call mpas_timer_start("se implicit vert mix")
+      call mpas_log_write("se implicit vert mix")
 
       block => domain % blocklist
       do while(associated(block))
@@ -1816,6 +1914,7 @@ module ocn_time_integration_split
       call mpas_timer_stop('se vmix halos')
 
       call mpas_timer_stop("se implicit vert mix")
+      call mpas_log_write("se implicit vert mix")
 
       call mpas_threading_barrier()
 
@@ -1934,6 +2033,7 @@ module ocn_time_integration_split
 
       call mpas_timer_stop('se fini')
       call mpas_timer_stop("se timestep")
+      call mpas_log_write("se timestep")
 
       deallocate(n_bcl_iter)
 

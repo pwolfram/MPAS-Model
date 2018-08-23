@@ -122,9 +122,14 @@ def process_test_setup(test_tag, config_file, work_dir, model_runtime,
             command = '{}, stdout=case_output, stderr=case_output)'.format(
                 command)
 
+
+            testpath = "{}/{}/{}/{}/{}".format(
+                          work_dir, test_core, test_configuration,
+                          test_resolution, test_test)
+
             # Write test case run step
-            suite_script.write("print ' ** Running case {}'\n".format(
-                test_name))
+            suite_script.write("print ' ** Running case {} in {}'\n".format(
+                test_name, testpath))
             suite_script.write('try:\n')
             suite_script.write('    {}\n'.format(command))
             suite_script.write("    print '      PASS'\n")

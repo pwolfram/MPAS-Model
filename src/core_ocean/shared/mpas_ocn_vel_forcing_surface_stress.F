@@ -115,7 +115,7 @@ contains
 
       integer :: iEdge, k, cell1, cell2, nEdges
       integer, dimension(:), pointer :: nEdgesArray
-      integer, dimension(:), pointer :: maxLevelEdgeTop
+      integer, dimension(:), pointer :: maxLevelEdgeTop, maxLevelCell
       integer, dimension(:,:), pointer :: edgeMask, cellsOnEdge
 
       real (kind=RKIND) :: transmissionCoeffTop, transmissionCoeffBot, zTop, zBot, remainingStress, &
@@ -138,10 +138,14 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
 
       call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
+      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
 
       nEdges = nEdgesArray ( 1 )
+
+      !write(*,*) 'in ocn_vel_forcing_surface_stress_tend'
+      !write(*,*) maxLevelCell
 
       !$omp do schedule(runtime) private(zTop, transmissionCoeffBot, remainingStress, k, transmissionCoeffTop, &
       !$omp                              cell1, cell2, attenuationCoeff, zBot)
@@ -167,6 +171,8 @@ contains
            transmissionCoeffTop = transmissionCoeffBot
         enddo
 
+        !write(*,*) 'maxLevelEdgeTop=', maxLevelEdgeTop(iEdge), ' iEdge=', iEdge
+        !write(*,*) 'layerThicknessEdge=', layerThicknessEdge(maxLevelEdgeTop(iEdge), iEdge)
         if ( maxLevelEdgeTop(iEdge) > 0 .and. remainingStress > 0.0_RKIND) then
            tend(maxLevelEdgeTop(iEdge), iEdge) = tend(maxLevelEdgeTop(iEdge), iEdge) &
                          + edgeMask(maxLevelEdgeTop(iEdge), iEdge) * surfaceStress(iEdge) * remainingStress &
@@ -174,6 +180,7 @@ contains
         end if
       enddo
       !$omp end do
+      !write(*,*) 'out ocn_vel_forcing_surface_stress_tend'
 
       call mpas_timer_stop('vel surface stress')
 

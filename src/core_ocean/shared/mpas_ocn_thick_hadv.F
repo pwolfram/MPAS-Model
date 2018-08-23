@@ -156,6 +156,7 @@ contains
           do k = 1, maxLevelEdgeBot(iEdge)
             flux = normalVelocity(k, iEdge) * dvEdge(iEdge) * layerThicknessEdge(k, iEdge)
             tend(k, iCell) = tend(k, iCell) + edgeSignOnCell(i, iCell) * flux * invAreaCell
+            !call mpas_log_write('flux = $r, tend= $r', realArgs=(/flux, tend(k, iCell)/))
           end do
         end do
       end do

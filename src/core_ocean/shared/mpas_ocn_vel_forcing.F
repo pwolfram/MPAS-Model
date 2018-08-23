@@ -21,6 +21,7 @@
 module ocn_vel_forcing
 
    use mpas_derived_types
+   use mpas_log
 
    use ocn_constants
    use ocn_forcing
@@ -134,17 +135,22 @@ contains
 
       err = 0
 
+      call mpas_log_write('before ocn_vel_forcing_surface_stress_tend')
       call ocn_vel_forcing_surface_stress_tend(meshPool, surfaceFluxAttenuationCoefficient, &
                                                surfaceStress, layerThicknessEdge, tend, err1)
       err = ior(err, err1)
+      call mpas_log_write('after ocn_vel_forcing_surface_stress_tend')
 
+      call mpas_log_write('before ocn_vel_forcing_explicit_bottom_drag')
       call ocn_vel_forcing_explicit_bottom_drag_tend(meshPool, normalVelocity, &
               kineticEnergyCell, layerThicknessEdge, tend, err1)
-
       err = ior(err, err1)
+      call mpas_log_write('end ocn_vel_forcing_explicit_bottom_drag')
 
+      call mpas_log_write('before ocn_vel_forcing_rayleigh_tend')
       call ocn_vel_forcing_rayleigh_tend(meshPool, normalVelocity, tend, err1)
       err = ior(err, err1)
+      call mpas_log_write('after ocn_vel_forcing_rayleigh_tend')
 
    !--------------------------------------------------------------------
 

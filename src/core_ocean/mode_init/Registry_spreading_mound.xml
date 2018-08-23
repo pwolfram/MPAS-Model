@@ -1,0 +1,26 @@
+	<nml_record name="spreading_mound" mode="init" configuration=="spreading_mound">
+		<nml_option name="config_spreading_mound_vert_levels" type="integer" default_value="3" units="unitless"
+			description="Number of vertical levels in spreading_mound. Typical value is 3."
+			possible_values="Any positive integer number greater than 0."
+		/>
+		<nml_option name="config_spreading_mound_eta0" type="real" default_value="1.0" units="m"
+			description="Initial height of spreading mound."
+			possible_values="Any real, positive number"
+		/>
+		<nml_option name="config_spreading_mound_R0" type="real" default_value="1.0" units="m"
+			description="Initial radius of spreading mound."
+			possible_values="Any real, positive number"
+		/>
+		<nml_option name="config_spreading_mound_xc" type="real" default_value="4.5" units="m"
+			description="Center of domain in x."
+			possible_values="Any real, positive number"
+		/>
+		<nml_option name="config_spreading_mound_yc" type="real" default_value="3.9" units="m"
+			description="Center of domain in y."
+			possible_values="Any real, positive number"
+		/>
+		<nml_option name="config_spreading_mound_coriolis_parameter" type="real" default_value="0.0" units="m"
+			description="Coriolis in spreading mound case."
+			possible_values="Any real, positive number"
+		/>
+	</nml_record>
