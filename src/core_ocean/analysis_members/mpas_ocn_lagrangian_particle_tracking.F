@@ -2008,7 +2008,7 @@ contains
           else if (verticalTreatment == 3 .or. verticalTreatment == 2) then !('passiveFloat' or 'fixedZLevel')
             ! make sure final zLevelParticle is ok so that it can't extent past zMid range
             iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
-            !call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
+            call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
           else
             call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
           end if
@@ -2041,17 +2041,17 @@ contains
           !}}}
           if ( associated(activeTracers) ) then
             if (config_AM_lagrPartTrack_sample_temperature) then
-             !call mpas_log_write(' testing output for temperature')
+             call mpas_log_write(' testing output for temperature')
              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                activeTracers(index_temperature,:,iCell), particleTemperature)
-             !call mpas_log_write('done testing output for temperature')
+             call mpas_log_write('done testing output for temperature')
             end if
 
             if (config_AM_lagrPartTrack_sample_salinity) then
-             !call mpas_log_write(' testing output for salinity')
+             call mpas_log_write(' testing output for salinity')
              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                activeTracers(index_salinity,:,iCell), particleSalinity)
-             !call mpas_log_write('done testing output for salinity')
+             call mpas_log_write('done testing output for salinity')
             end if
           end if
 
@@ -2059,17 +2059,17 @@ contains
             call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
             if ( associated(ecosysTracers) ) then
               if (config_AM_lagrPartTrack_sample_DIC) then
-                !call mpas_log_write('testing output for DIC')
+                call mpas_log_write('testing output for DIC')
                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                   ecosysTracers(index_DIC,:,iCell), particleDIC)
-                !call mpas_log_write('done testing output for DIC')
+                call mpas_log_write('done testing output for DIC')
               end if
 
               if (config_AM_lagrPartTrack_sample_ALK) then
-                !call mpas_log_write('testing output for ALK')
+                call mpas_log_write('testing output for ALK')
                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                   ecosysTracers(index_ALK,:,iCell), particleALK)
-                !call mpas_log_write('done testing output for ALK')
+                call mpas_log_write('done testing output for ALK')
               end if
             end if
           end if
@@ -2343,7 +2343,7 @@ contains
         ! will definitely be some error with this type of computation because the buoyancy is not available at this location
         ! the time interpolation, as a consequency, can mix velocities from different buoyancy surfaces in order to advect
         ! the particle
-        !call mpas_log_write( 'iLevel = $i',MPAS_LOG_OUT, intArgs=(/ iLevel /) )
+        call mpas_log_write( 'iLevel = $i',MPAS_LOG_OUT, intArgs=(/ iLevel /) )
       end if
 
       call particle_vertical_treatment(verticalTreatment, indexLevel, nCellVertices, verticesOnCell(:,iCell), &
