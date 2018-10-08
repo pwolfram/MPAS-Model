@@ -256,7 +256,7 @@ contains
       type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: lagrPartTrackFieldsPool, lagrPartTrackCellsPool, lagrPartTrackScratchPool
       integer, dimension(:), pointer :: cellOwnerBlock
-      integer, pointer :: currentBlock, ioBlock, indexToParticleID, transfered
+      integer, pointer :: currentBlock, ioBlock, indexToParticleID, transfered, currentCellGlobalID
       type (mpas_particle_list_type), pointer :: particlelist
       type (mpas_particle_type), pointer :: particle
 
@@ -276,7 +276,7 @@ contains
       real(kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
 
       integer, dimension(:,:), pointer :: verticesOnCell, boundaryVertex
-      integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: maxLevelCell, indexToCellID
 
       integer theVertex, iLevel, iLevelBuoyancy, aVertex, &
         nSteps, timeStep, subStep, subStepOrder, timeInterpOrder, aTimeLevel, nCellVertices, blockProc, arrayIndex
@@ -410,6 +410,7 @@ contains
         call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
         call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nCellVerticesArray)
         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(meshPool, 'indexToCellID', indexToCellID)
 
         call mpas_pool_get_config(meshPool, 'on_a_sphere', onSphere)
         call mpas_pool_get_config(meshPool, 'sphere_radius', sphereRadius)
@@ -495,6 +496,7 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'buoyancyParticle', buoyancyParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
           call mpas_pool_get_array(particle % haloDataPool, 'currentCell', iCell)
+          call mpas_pool_get_array(particle % haloDataPool, 'currentCellGlobalID', currentCellGlobalID)
 
           ! sampling variables
           call mpas_pool_get_array(particle % haloDataPool, 'temperature', temperature)
@@ -793,6 +795,9 @@ contains
            !  config_AM_lagrPartTrack_sample_salinity) then
 
            !end if
+
+          ! store global cell ID
+          currentCellGlobalID = indexToCellID(iCell)
 
            if ( associated(activeTracers) ) then
              if (config_AM_lagrPartTrack_sample_temperature) then
@@ -1751,7 +1756,7 @@ contains
       real(kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
 
       integer, dimension(:,:), pointer :: verticesOnCell, boundaryVertex
-      integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: maxLevelCell, indexToCellID
 
       integer theVertex, iLevel, iLevelBuoyancy, aVertex, &
         nSteps, timeStep, subStep, subStepOrder, timeInterpOrder, aTimeLevel, nCellVertices, blockProc, arrayIndex
@@ -1775,7 +1780,7 @@ contains
       real (kind=RKIND) :: diffSubStepVert, diffParticlePositionVert, particleVelocityVert, verticalVelocityInterp
       real (kind=RKIND) :: buoyancyInterp
       real (kind=RKIND), pointer :: sphereRadius
-      integer, pointer :: verticalTreatment, indexLevel, filterNum, iCell
+      integer, pointer :: verticalTreatment, indexLevel, filterNum, iCell, currentCellGlobalID
 
       type (mpas_pool_type), pointer :: tracersPool
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -1813,6 +1818,7 @@ contains
         call mpas_pool_get_array(meshPool, 'xVertex', xVertex)
         call mpas_pool_get_array(meshPool, 'yVertex', yVertex)
         call mpas_pool_get_array(meshPool, 'zVertex', zVertex)
+        call mpas_pool_get_array(meshPool, 'indexToCellID', indexToCellID)
         call mpas_pool_get_array(lagrPartTrackCellsPool, 'wachspressAreaB', areaBArray)
         call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
         call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
@@ -1852,6 +1858,7 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'yParticle', yParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'zParticle', zParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'currentCell', iCell)
+          call mpas_pool_get_array(particle % haloDataPool, 'currentCellGlobalID', currentCellGlobalID)
           iCell = -1
 
           particlePosition(1) = xParticle
@@ -1913,6 +1920,9 @@ contains
           else
             call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
           end if
+
+          ! store global cell ID
+          currentCellGlobalID = indexToCellID(iCell)
 
           ! compute necessary information for autocorrelation !{{{
           ! get the updated velocity
