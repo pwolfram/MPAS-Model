@@ -2961,6 +2961,7 @@ contains
 !> \details
 !>  Adapted from seaice_latlon_from_xyz, with
 !>          1. assume xyz points define r
+!>          2. shift to be in range of 0 to 2*pi as in mesh tools
 !>
 !> Note, should be moved into framework.
 !
@@ -2983,6 +2984,11 @@ contains
     r = sqrt(x*x + y*y + z*z)
     lon = atan2(y, x)
     lat = asin(z/r)
+
+    ! ensure range in 0, 2*pi
+    if (lon < 0.0_RKIND) then
+      lon = 2*pii + lon
+    end if
 
   end subroutine convert_latlon_from_xyz !}}}
 
