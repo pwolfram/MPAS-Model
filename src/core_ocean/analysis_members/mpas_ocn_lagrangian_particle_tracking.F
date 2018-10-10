@@ -263,6 +263,7 @@ contains
       real (kind=RKIND), dimension(3) :: particlePosition, particleVelocity
       real (kind=RKIND), pointer :: xParticle, yParticle, zParticle, buoyancyParticle !, &
 !        lonVel, latVel, sumU, sumV, sumUU, sumUV, sumVV
+      real (kind=RKIND), pointer :: lonParticle, latParticle
       real (kind=RKIND), dimension(3) :: xSubStep, diffSubStep, diffParticlePosition
       real (kind=RKIND), pointer :: zLevelParticle
       real (kind=RKIND), dimension(:,:), pointer :: zTop, vertVelocityTop, zMid, areaBArray
@@ -483,6 +484,12 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'xParticle', xParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'yParticle', yParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'zParticle', zParticle)
+          call mpas_pool_get_array(particle % haloDataPool, 'lonParticle', lonParticle)
+          call mpas_pool_get_array(particle % haloDataPool, 'latParticle', latParticle)
+
+          ! compute particle lat/lon position
+          call convert_latlon_from_xyz(latParticle, lonParticle, xParticle, yParticle, zParticle)
+
           particlePosition(1) = xParticle
           particlePosition(2) = yParticle
           particlePosition(3) = zParticle
@@ -862,6 +869,9 @@ contains
           xParticle = particlePosition(1)
           yParticle = particlePosition(2)
           zParticle = particlePosition(3)
+
+          ! compute particle lat/lon position
+          call convert_latlon_from_xyz(latParticle, lonParticle, xParticle, yParticle, zParticle)
 
           !!!!!!!!!! PASS PARTICLES FROM PROCESSOR TO PROCESSOR !!!!!!!!!!
           ! note, assumes that integration above didn't move particle past halo
@@ -1738,6 +1748,7 @@ contains
       real (kind=RKIND), dimension(3) :: particlePosition, particleVelocity
       real (kind=RKIND), pointer :: xParticle, yParticle, zParticle, lonVel, latVel, buoyancyParticle !, &
 !        lonVel, latVel, sumU, sumV, sumUU, sumUV, sumVV
+      real (kind=RKIND), pointer :: lonParticle, latParticle
       real (kind=RKIND), dimension(3) :: xSubStep, diffSubStep, diffParticlePosition
       real (kind=RKIND), pointer :: zLevelParticle
       real (kind=RKIND), dimension(:,:), pointer :: zTop, vertVelocityTop, zMid, areaBArray
@@ -1851,12 +1862,17 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'xParticle', xParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'yParticle', yParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'zParticle', zParticle)
+          call mpas_pool_get_array(particle % haloDataPool, 'lonParticle', lonParticle)
+          call mpas_pool_get_array(particle % haloDataPool, 'latParticle', latParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'currentCell', iCell)
           iCell = -1
 
           particlePosition(1) = xParticle
           particlePosition(2) = yParticle
           particlePosition(3) = zParticle
+
+          ! compute particle lat/lon position
+          call convert_latlon_from_xyz(latParticle, lonParticle, xParticle, yParticle, zParticle)
 
           call mpas_pool_get_array(particle % haloDataPool, 'zLevelParticle', zLevelParticle)
 
@@ -2934,6 +2950,48 @@ contains
      end do
 
    end subroutine time_interp_field !}}}
+
+!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+!
+!  convert_latlon_from_xyz
+!
+!> \brief
+!> \author Adrian K. Turner and Phillip J. Wolfram, LANL
+!> \date 2013-2014, 10/08/2018
+!> \details
+!>  Adapted from seaice_latlon_from_xyz, with
+!>          1. assume xyz points define r
+!>          2. shift to be in range of 0 to 2*pi as in mesh tools
+!>
+!> Note, should be moved into framework.
+!
+!-----------------------------------------------------------------------
+  subroutine convert_latlon_from_xyz(lat, lon, x, y, z) !{{{
+    implicit none
+
+    ! given xyz coordinates determine the latitude and longitude
+    real(kind=RKIND), intent(out) :: &
+         lat, & !< Output: latitude of point
+         lon    !< Output: longitude of point
+
+    real(kind=RKIND), intent(in) :: &
+         x,   & !< Input: x position of point
+         y,   & !< Input: y position of point
+         z      !< Input: z position of point
+
+    real(kind=RKIND) :: r      !< Computed: radius of earth
+
+    r = sqrt(x*x + y*y + z*z)
+    lon = atan2(y, x)
+    lat = asin(z/r)
+
+    ! ensure range in 0, 2*pi
+    if (lon < 0.0_RKIND) then
+      lon = 2*pii + lon
+    end if
+
+  end subroutine convert_latlon_from_xyz !}}}
+
 !}}}
 
 end module ocn_lagrangian_particle_tracking
