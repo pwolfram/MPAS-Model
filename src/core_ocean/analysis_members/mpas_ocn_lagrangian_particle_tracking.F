@@ -838,17 +838,17 @@ contains
 
            if ( associated(activeTracers) ) then
              if (config_AM_lagrPartTrack_sample_temperature) then
-              !call mpas_log_write(' testing output for temperature')
+              call mpas_log_write(' testing output for temperature')
               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                 activeTracers(index_temperature,:,iCell), particleTemperature)
-              !call mpas_log_write('done testing output for temperature')
+              call mpas_log_write('done testing output for temperature')
              end if
 
              if (config_AM_lagrPartTrack_sample_salinity) then
-              !call mpas_log_write(' testing output for salinity')
+              call mpas_log_write(' testing output for salinity')
               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                 activeTracers(index_salinity,:,iCell), particleSalinity)
-              !call mpas_log_write('done testing output for salinity')
+              call mpas_log_write('done testing output for salinity')
              end if
            end if
 
@@ -856,17 +856,17 @@ contains
              call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
              if ( associated(ecosysTracers) ) then
                if (config_AM_lagrPartTrack_sample_DIC) then
-                 !call mpas_log_write('testing output for DIC')
+                 call mpas_log_write('testing output for DIC')
                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                    ecosysTracers(index_DIC,:,iCell), particleDIC)
-                 !call mpas_log_write('done testing output for DIC')
+                 call mpas_log_write('done testing output for DIC')
                end if
 
                if (config_AM_lagrPartTrack_sample_ALK) then
-                 !call mpas_log_write('testing output for ALK')
+                 call mpas_log_write('testing output for ALK')
                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                    ecosysTracers(index_ALK,:,iCell), particleALK)
-                 !call mpas_log_write('done testing output for ALK')
+                 call mpas_log_write('done testing output for ALK')
                end if
              end if
            end if
