@@ -530,8 +530,8 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'currentCellGlobalID', currentCellGlobalID)
 
           ! sampling variables
-          call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
-          call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+          call mpas_pool_get_array(particle % haloDataPool, 'particleTemperature', particleTemperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'particleSalinity', particleSalinity)
 
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
@@ -1955,8 +1955,8 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'buoyancyParticle', buoyancyParticle)
           call mpas_pool_get_array(particle % haloDataPool, 'indexToParticleID', indexToParticleID)
 
-          call mpas_pool_get_array(particle % haloDataPool, 'temperature', particleTemperature)
-          call mpas_pool_get_array(particle % haloDataPool, 'salinity', particleSalinity)
+          call mpas_pool_get_array(particle % haloDataPool, 'particleTemperature', particleTemperature)
+          call mpas_pool_get_array(particle % haloDataPool, 'particleSalinity', particleSalinity)
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
