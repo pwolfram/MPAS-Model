@@ -82,6 +82,9 @@
     <var name="indexToParticleID"/>
     <var name="currentBlock"/>
     <var name="currentCell"/>
+    <var name="currentCellGlobalID"/>
+    <var name="lonParticle"/>
+    <var name="latParticle"/>
     <var name="xParticle"/>
     <var name="yParticle"/>
     <var name="zParticle"/>
