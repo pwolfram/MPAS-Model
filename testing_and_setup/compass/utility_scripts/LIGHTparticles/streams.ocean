@@ -1,5 +1,5 @@
 <stream name="lagrPartTrackInput"
-        filename_template="/lcrc/group/acme/pwolfram/acme_scratch/20180509.GMPAS-IAF.T62_oQU240.anvil.particles/run/particles.nc"
+        filename_template="/path/to/particle/init/file"
         input_interval="initial_only"
         packages="lagrPartTrackAMPKG"
         type="input"
