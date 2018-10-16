@@ -323,7 +323,14 @@ contains
       ! BGC tracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
-                          index_ALK
+                          index_ALK, &
+                          index_PO4, &
+                          index_NO3, &
+                          index_SiO3, &
+                          index_NH4, &
+                          index_Fe, &
+                          index_O2
+
       real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers 
 
       ! DIC
@@ -333,9 +340,32 @@ contains
       ! ALK
       logical, pointer :: config_AM_lagrPartTrack_sample_ALK
       real (kind=RKIND), pointer :: particleALK
-  
-      REAL (kind=RKIND), parameter :: eps=1e-12
 
+      ! PO4
+      logical, pointer :: config_AM_lagrPartTrack_sample_PO4
+      real (kind=RKIND), pointer :: particlePO4
+ 
+      ! NO3
+      logical, pointer :: config_AM_lagrPartTrack_sample_NO3
+      real (kind=RKIND), pointer :: particleNO3
+
+      ! SiO3
+      logical, pointer :: config_AM_lagrPartTrack_sample_SiO3
+      real (kind=RKIND), pointer :: particleSiO3
+
+      ! NH4
+      logical, pointer :: config_AM_lagrPartTrack_sample_NH4
+      real (kind=RKIND), pointer :: particleNH4
+
+      ! Fe
+      logical, pointer :: config_AM_lagrPartTrack_sample_Fe
+      real (kind=RKIND), pointer :: particleFe
+
+      ! O2
+      logical, pointer :: config_AM_lagrPartTrack_sample_O2 
+      real (kind=RKIND), pointer :: particleO2
+
+      REAL (kind=RKIND), parameter :: eps=1e-12
 
       err = 0
 
@@ -359,6 +389,12 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_DIC', config_AM_lagrPartTrack_sample_DIC)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_ALK', config_AM_lagrPartTrack_sample_ALK)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_PO4', config_AM_lagrPartTrack_sample_PO4)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_NO3', config_AM_lagrPartTrack_sample_NO3)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_SiO3', config_AM_lagrPartTrack_sample_SiO3)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_NH4', config_AM_lagrPartTrack_sample_NH4)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_Fe', config_AM_lagrPartTrack_sample_Fe)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_O2', config_AM_lagrPartTrack_sample_O2)
        
       if (trim(config_AM_lagrPartTrack_reset_criteria) == 'none') then
         config_AM_lagrPartTrack_reset_particles = .False.
@@ -424,6 +460,12 @@ contains
           call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
           call mpas_pool_get_dimension(tracersPool, 'index_DIC', index_DIC)
           call mpas_pool_get_dimension(tracersPool, 'index_ALK', index_ALK)
+          call mpas_pool_get_dimension(tracersPool, 'index_PO4', index_PO4)
+          call mpas_pool_get_dimension(tracersPool, 'index_NO3', index_NO3)
+          call mpas_pool_get_dimension(tracersPool, 'index_SiO3', index_SiO3)
+          call mpas_pool_get_dimension(tracersPool, 'index_NH4', index_NH4)
+          call mpas_pool_get_dimension(tracersPool, 'index_Fe', index_Fe)
+          call mpas_pool_get_dimension(tracersPool, 'index_O2', index_O2)
         end if
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
@@ -535,6 +577,12 @@ contains
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'particleDIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'particleALK', particleALK)
+            call mpas_pool_get_array(particle % haloDataPool, 'particlePO4', particlePO4)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleNO3', particleNO3)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleSiO3', particleSiO3)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleNH4', particleNH4)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleFe', particleFe)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleO2', particleO2)
           end if
 
 !         call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
@@ -866,6 +914,48 @@ contains
                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                    ecosysTracers(index_ALK,:,iCell), particleALK)
                  call mpas_log_write('done testing output for ALK')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_PO4) then
+                 call mpas_log_write('testing output for PO4')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_PO4,:,iCell), particlePO4)
+                 call mpas_log_write('done testing output for PO4')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_NO3) then
+                 call mpas_log_write('testing output for NO3')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_NO3,:,iCell), particleNO3)
+                 call mpas_log_write('done testing output for NO3')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_SiO3) then
+                 call mpas_log_write('testing output for SiO3')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_SiO3,:,iCell), particleSiO3)
+                 call mpas_log_write('done testing output for SiO3')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_NH4) then
+                 call mpas_log_write('testing output for NH4')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_NH4,:,iCell), particleNH4)
+                 call mpas_log_write('done testing output for NH4')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_Fe) then
+                 call mpas_log_write('testing output for Fe')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_Fe,:,iCell), particleFe)
+                 call mpas_log_write('done testing output for Fe')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_O2) then
+                 call mpas_log_write('testing output for O2')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_O2,:,iCell), particleO2)
+                 call mpas_log_write('done testing output for O2')
                end if
              end if 
            end if
@@ -1852,11 +1942,45 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers
       logical, pointer :: config_use_ecosysTracers
       integer, pointer :: index_DIC, &
-                          index_ALK
+                          index_ALK, &
+                          index_PO4, &
+                          index_NO3, &
+                          index_SiO3, &
+                          index_NH4, &
+                          index_Fe, &
+                          index_O2
+
+      ! DIC
       logical, pointer :: config_AM_lagrPartTrack_sample_DIC
       real (kind=RKIND), pointer :: particleDIC
+      
+      ! ALK
       logical, pointer :: config_AM_lagrPartTrack_sample_ALK
       real (kind=RKIND), pointer :: particleALK
+      
+      ! PO4
+      logical, pointer :: config_AM_lagrPartTrack_sample_PO4
+      real (kind=RKIND), pointer :: particlePO4
+ 
+      ! NO3
+      logical, pointer :: config_AM_lagrPartTrack_sample_NO3
+      real (kind=RKIND), pointer :: particleNO3
+
+      ! SiO3
+      logical, pointer :: config_AM_lagrPartTrack_sample_SiO3
+      real (kind=RKIND), pointer :: particleSiO3
+
+      ! NH4
+      logical, pointer :: config_AM_lagrPartTrack_sample_NH4
+      real (kind=RKIND), pointer :: particleNH4
+
+      ! Fe
+      logical, pointer :: config_AM_lagrPartTrack_sample_Fe
+      real (kind=RKIND), pointer :: particleFe
+
+      ! O2
+      logical, pointer :: config_AM_lagrPartTrack_sample_O2 
+      real (kind=RKIND), pointer :: particleO2
 
       err = 0
 
@@ -1865,6 +1989,12 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_DIC', config_AM_lagrPartTrack_sample_DIC)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_ALK', config_AM_lagrPartTrack_sample_ALK)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_PO4', config_AM_lagrPartTrack_sample_PO4)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_NO3', config_AM_lagrPartTrack_sample_NO3)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_SiO3', config_AM_lagrPartTrack_sample_SiO3)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_NH4', config_AM_lagrPartTrack_sample_NH4)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_Fe', config_AM_lagrPartTrack_sample_Fe)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_O2', config_AM_lagrPartTrack_sample_O2)
 
       dminfo = domain % dminfo
 
@@ -1907,6 +2037,12 @@ contains
           call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel=timeLevel)
           call mpas_pool_get_dimension(tracersPool, 'index_DIC', index_DIC)
           call mpas_pool_get_dimension(tracersPool, 'index_ALK', index_ALK)
+          call mpas_pool_get_dimension(tracersPool, 'index_PO4', index_PO4)
+          call mpas_pool_get_dimension(tracersPool, 'index_NO3', index_NO3)
+          call mpas_pool_get_dimension(tracersPool, 'index_SiO3', index_SiO3)
+          call mpas_pool_get_dimension(tracersPool, 'index_NH4', index_NH4)
+          call mpas_pool_get_dimension(tracersPool, 'index_Fe', index_Fe)
+          call mpas_pool_get_dimension(tracersPool, 'index_O2', index_O2)
         end if 
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
@@ -1959,6 +2095,12 @@ contains
           if (config_use_ecosysTracers) then
             call mpas_pool_get_array(particle % haloDataPool, 'particleDIC', particleDIC)
             call mpas_pool_get_array(particle % haloDataPool, 'particleALK', particleALK)
+            call mpas_pool_get_array(particle % haloDataPool, 'particlePO4', particlePO4)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleNO3', particleNO3)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleSiO3', particleSiO3)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleNH4', particleNH4)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleFe', particleFe)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleO2', particleO2)
           end if 
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
@@ -2064,6 +2206,48 @@ contains
                   ecosysTracers(index_ALK,:,iCell), particleALK)
                 call mpas_log_write('done testing output for ALK')
               end if
+
+               if (config_AM_lagrPartTrack_sample_PO4) then
+                 call mpas_log_write('testing output for PO4')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_PO4,:,iCell), particlePO4)
+                 call mpas_log_write('done testing output for PO4')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_NO3) then
+                 call mpas_log_write('testing output for NO3')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_NO3,:,iCell), particleNO3)
+                 call mpas_log_write('done testing output for NO3')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_SiO3) then
+                 call mpas_log_write('testing output for SiO3')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_SiO3,:,iCell), particleSiO3)
+                 call mpas_log_write('done testing output for SiO3')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_NH4) then
+                 call mpas_log_write('testing output for NH4')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_NH4,:,iCell), particleNH4)
+                 call mpas_log_write('done testing output for NH4')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_Fe) then
+                 call mpas_log_write('testing output for Fe')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_Fe,:,iCell), particleFe)
+                 call mpas_log_write('done testing output for Fe')
+               end if
+
+               if (config_AM_lagrPartTrack_sample_O2) then
+                 call mpas_log_write('testing output for O2')
+                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                   ecosysTracers(index_O2,:,iCell), particleO2)
+                 call mpas_log_write('done testing output for O2')
+               end if
             end if 
           end if
 
