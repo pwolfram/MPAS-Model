@@ -1996,22 +1996,9 @@ contains
           call mpas_timer_stop("get_validated_cell_idLPT")
 #endif
 
-          if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell))
-
-            ! interpolate the scalars now (assumes that scalar value is constant within a particular cell)
-            call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell), &
-              zMid(:,iCell), zLevelParticle)
-          else if (verticalTreatment == 1) then !('indexLevel')
-            zLevelParticle = zMid(indexLevel, iCell)
-            iLevel = indexLevel
-          else if (verticalTreatment == 3 .or. verticalTreatment == 2) then !('passiveFloat' or 'fixedZLevel')
-            ! make sure final zLevelParticle is ok so that it can't extent past zMid range
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
-            call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
-          else
-            call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
-          end if
+          call get_vertical_level_info(iLevel, zLevelParticle, &
+            verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+            zMid, indexLevel)
 
           ! store global cell ID
           currentCellGlobalID = indexToCellID(iCell)
@@ -2592,6 +2579,69 @@ contains
      endif
 
    end subroutine particle_horizontal_movement!}}}
+
+!***********************************************************************
+!
+!  routine get_vertical_level_info
+!
+!> \brief   Returns iLevel and zLevelParticle information for vertical location
+!> \author  Phillip Wolfram
+!> \date    11/13/2018
+!> \details
+!>  This routine computes the iLevel and zLevelParticle associated with a particular
+!>  verticalTreatment.
+!
+!-----------------------------------------------------------------------
+   subroutine get_vertical_level_info(iLevel, zLevelParticle, &
+       verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+       zMid, indexLevel)  !{{{
+
+     implicit none
+
+     !-----------------------------------------------------------------
+     ! input variables
+     !-----------------------------------------------------------------
+     integer, intent (in) :: verticalTreatment                        !< verticalTreatment used for particles
+     integer, dimension(:), pointer :: maxLevelCell                   !< maximum level for each horizontal cell
+     integer, intent(in) :: iCell                                     !< index for horizontal cell location
+     real (kind=RKIND), intent(in) :: buoyancyParticle                !< buoyancy value for particle
+     real (kind=RKIND), dimension(:,:), pointer :: buoyancyTimeInterp !< intepolated buoyancy value
+     real (kind=RKIND), dimension(:,:), pointer :: zMid               !< mid depth z value for each cell
+     integer, intent(in) :: indexLevel                                !< index level for particle vertical location
+
+     !-----------------------------------------------------------------
+     ! input/output variables
+     !-----------------------------------------------------------------
+
+     integer, intent(inout) :: iLevel                                 !< vertical level / cell of phiInterp
+     real (kind=RKIND), pointer :: zLevelParticle                     !< vertical level for particle
+
+     !-----------------------------------------------------------------
+     ! local variables
+     !-----------------------------------------------------------------
+
+     ! none
+
+     if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
+       iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell))
+
+       ! get zLevelParticle by interpolating the scalars now (assumes that
+       ! scalar value is constant within a particular cell)
+       call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell), &
+         zMid(:,iCell), zLevelParticle)
+     else if (verticalTreatment == 1) then !('indexLevel')
+       zLevelParticle = zMid(indexLevel, iCell)
+       iLevel = indexLevel
+     else if (verticalTreatment == 3 .or. verticalTreatment == 2) then !('passiveFloat' or 'fixedZLevel')
+       ! make sure final zLevelParticle is ok so that it can't extent past zMid range
+       iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
+       call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
+     else
+       call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
+     end if
+
+   end subroutine get_vertical_level_info !}}}
+
 
 !***********************************************************************
 !
