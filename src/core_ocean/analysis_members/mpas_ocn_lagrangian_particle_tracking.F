@@ -764,67 +764,9 @@ contains
           call mpas_timer_stop("get_validated_cell_idLPT")
 #endif
 
-          ! ensure that buoyancySurface particles have the correct zLevelParticle (interpolated based on their location)
-          if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
-            !! determine index level (don't need validated version because that will "fix" values which we may not want
-            !! however, if the particle's target buoyancy surface doesn't exist then we will need to
-            !! ensure that vertical location is valid, placing particles outside of range of zMid back inside
-            !! we don't validate this because we want the code to fail, at least initially, in the case that
-            !! the particle is in a cell that does not have the proper buoyancy target because this implies
-            !! that the buoyancy tracking mode has completely failed.
-            !! need to make sure it is validated for buoyancy particles
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell))
-            ! interpolate the scalars now (assumes that scalar value is constant within a particular cell)
-            call interp_cell_scalars(iLevel, maxLevelCell(iCell), buoyancyInterp, buoyancyTimeInterp(:,iCell), &
-              zMid(:,iCell), zLevelParticle)
-            !}}}
-          else
-            ! make sure final zLevelParticle is ok so that it can't extent past zMid range
-#ifdef MPAS_DEBUG
-            call mpas_timer_start("mpas_get_vertical_idLPT")
-#endif
-            if (verticalTreatment == 3) then !('passiveFloat')
-              ! constrain vertical level to be within dz/2 of ssh or bottom depth
-              zLevelParticle = min(max(zMid(maxLevelCell(iCell),iCell), zLevelParticle), zMid(1,iCell))
-            end if
-            iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
-
-            if (verticalTreatment == 1) then !('indexLevel')
-              ! assign indexLevel particle vertical position to dz/2 location in vertical cell midpoint
-              zLevelParticle = zMid(indexLevel, iCell)
-              iLevel = indexLevel
-            end if
-#ifdef MPAS_DEBUG
-            call mpas_timer_stop("mpas_get_vertical_idLPT")
-#endif
-          end if
-
-#ifdef MPAS_DEBUG
-          call mpas_timer_start("verifyParticleDepthInDomainLPT")
-#endif
-          !verify particles are still in domain !{{{
-#ifdef MPAS_DEBUG
-          ! check and verify that free floating particle hasn't gone out of boundary
-          if (iLevel == -1) then
-            call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
-          end if
-          if (iLevel == 0) then
-            call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
-          end if
-#endif
-          ! verify that it is less than SSH and greater than bottomDepth
-          if (zLevelParticle + bottomDepth(iCell) < eps) then
-            call mpas_log_write(' Error: $i ($i) Particle of type $i height $r is lower than bottom depth $r', realArgs=(/ zLevelParticle, -bottomDepth(iCell) /), intArgs=(/iCell, indexToParticleID, verticalTreatment/),&
-              messageType=MPAS_LOG_ERR)
-           end if
-           if (zLevelParticle - ssh(iCell) > eps) then
-            call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/),&
-              messageType=MPAS_LOG_ERR)
-           end if
-           !}}}
-#ifdef MPAS_DEBUG
-          call mpas_timer_stop("verifyParticleDepthInDomainLPT")
-#endif
+          call get_vertical_level_info(iLevel, zLevelParticle, &
+            verticalTreatment, maxLevelCell, iCell, buoyancyInterp, buoyancyTimeInterp, &
+            zMid, indexLevel, ssh, bottomDepth, indexToParticleID)
 
            !! sampling setup (if needed)
            !if (&
@@ -2594,7 +2536,7 @@ contains
 !-----------------------------------------------------------------------
    subroutine get_vertical_level_info(iLevel, zLevelParticle, &
        verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
-       zMid, indexLevel)  !{{{
+       zMid, indexLevel, ssh, bottomDepth, indexToParticleID)  !{{{
 
      implicit none
 
@@ -2608,21 +2550,25 @@ contains
      real (kind=RKIND), dimension(:,:), pointer :: buoyancyTimeInterp !< intepolated buoyancy value
      real (kind=RKIND), dimension(:,:), pointer :: zMid               !< mid depth z value for each cell
      integer, intent(in) :: indexLevel                                !< index level for particle vertical location
+     real (kind=RKIND), dimension(:), pointer, optional :: bottomDepth, ssh  !< error checking variables
+     integer, intent(in), pointer, optional :: indexToParticleID      !< index to particle ID
+
 
      !-----------------------------------------------------------------
      ! input/output variables
      !-----------------------------------------------------------------
 
      integer, intent(inout) :: iLevel                                 !< vertical level / cell of phiInterp
-     real (kind=RKIND), pointer :: zLevelParticle                     !< vertical level for particle
+     real (kind=RKIND), intent(inout) :: zLevelParticle                     !< vertical level for particle
 
      !-----------------------------------------------------------------
      ! local variables
      !-----------------------------------------------------------------
+     REAL (kind=RKIND), parameter :: eps=1e-12
 
-     ! none
 
-     if(verticalTreatment == 4) then  !('buoyancySurface') !{{{
+     ! compute zLevelParticle and iLevel ! {{{
+     if(verticalTreatment == 4) then  !('buoyancySurface')
        iLevel = mpas_get_vertical_id(maxLevelCell(iCell), buoyancyParticle, buoyancyTimeInterp(:,iCell))
 
        ! get zLevelParticle by interpolating the scalars now (assumes that
@@ -2634,11 +2580,48 @@ contains
        iLevel = indexLevel
      else if (verticalTreatment == 3 .or. verticalTreatment == 2) then !('passiveFloat' or 'fixedZLevel')
        ! make sure final zLevelParticle is ok so that it can't extent past zMid range
+       ! note, zlevel can be modified near top / bottom of ocean to keep particle in bounds
+       zLevelParticle = min(max(zMid(maxLevelCell(iCell),iCell), zLevelParticle), zMid(1,iCell))
        iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
        call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
      else
        call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
      end if
+     ! }}}
+
+     !verify particles are still in domain !{{{
+     if ( present(ssh) .and. present(bottomDepth) .and. present(indexToParticleID) ) then
+#ifdef MPAS_DEBUG
+       call mpas_timer_start("verifyParticleDepthInDomainLPT")
+#endif
+
+#ifdef MPAS_DEBUG
+       ! check and verify that free floating particle hasn't gone out of boundary
+       if (iLevel == -1) then
+         call mpas_log_write(' Warning: Particle $i location of $r is higher than zMid of $r', &
+           realArgs=(/ zLevelParticle, zMid(1, iCell) /), intArgs=(/iCell/))
+       end if
+       if (iLevel == 0) then
+         call mpas_log_write(' Warning: Particle $i location of $r is deeper than zMid at bottom $r', &
+           realArgs=(/ zLevelParticle, zMid(maxLevelCell(iCell),iCell) /), intArgs=(/iCell/))
+       end if
+#endif
+       ! verify that it is less than SSH and greater than bottomDepth
+       if (zLevelParticle + bottomDepth(iCell) < eps) then
+         call mpas_log_write(' Error: $i ($i) Particle of type $i height $r is lower than bottom depth $r', &
+           realArgs=(/ zLevelParticle, -bottomDepth(iCell) /), intArgs=(/iCell, indexToParticleID, verticalTreatment/),&
+           messageType=MPAS_LOG_ERR)
+       end if
+       if (zLevelParticle - ssh(iCell) > eps) then
+         call mpas_log_write(' Error: Particle $i height $r is higher than ssh of $r', &
+           realArgs=(/ zLevelParticle, ssh(iCell) /), intArgs=(/iCell/), &
+           messageType=MPAS_LOG_ERR)
+       end if
+#ifdef MPAS_DEBUG
+       call mpas_timer_stop("verifyParticleDepthInDomainLPT")
+#endif
+     end if
+     !}}}
 
    end subroutine get_vertical_level_info !}}}
 
