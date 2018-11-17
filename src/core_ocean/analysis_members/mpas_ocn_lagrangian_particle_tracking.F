@@ -807,8 +807,22 @@ contains
 
              if (config_AM_lagrPartTrack_sample_salinity) then
               call mpas_log_write(' testing output for salinity')
-              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                activeTracers(index_salinity,:,iCell), particleSalinity)
+              if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                call interp_scalars(particleSalinity, activeTracers(index_salinity,:,:), &
+                  verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                  particlePosition(1),particlePosition(2),particlePosition(3), &
+                  xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  xCell, yCell, zCell, &
+                  meshPool, &
+                  cellsOnVertex, &
+                  verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                  zMid, indexLevel)
+              else
+                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                  activeTracers(index_salinity,:,iCell), particleSalinity)
+              end if
               call mpas_log_write('done testing output for salinity')
              end if
            end if
@@ -818,15 +832,43 @@ contains
              if ( associated(ecosysTracers) ) then
                if (config_AM_lagrPartTrack_sample_DIC) then
                  call mpas_log_write('testing output for DIC')
-                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                   ecosysTracers(index_DIC,:,iCell), particleDIC)
+                 if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                   call interp_scalars(particleDIC, ecosysTracers(index_DIC,:,:), &
+                     verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                     particlePosition(1),particlePosition(2),particlePosition(3), &
+                     xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     xCell, yCell, zCell, &
+                     meshPool, &
+                     cellsOnVertex, &
+                     verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                     zMid, indexLevel)
+                 else
+                   call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                     ecosysTracers(index_DIC,:,iCell), particleDIC)
+                 end if
                  call mpas_log_write('done testing output for DIC')
                end if
 
                if (config_AM_lagrPartTrack_sample_ALK) then
                  call mpas_log_write('testing output for ALK')
-                 call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                   ecosysTracers(index_ALK,:,iCell), particleALK)
+                 if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                   call interp_scalars(particleALK, ecosysTracers(index_ALK,:,:), &
+                     verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                     particlePosition(1),particlePosition(2),particlePosition(3), &
+                     xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                     xCell, yCell, zCell, &
+                     meshPool, &
+                     cellsOnVertex, &
+                     verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                     zMid, indexLevel)
+                 else
+                   call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                     ecosysTracers(index_ALK,:,iCell), particleALK)
+                 end if
                  call mpas_log_write('done testing output for ALK')
                end if
              end if
@@ -2016,12 +2058,22 @@ contains
 
             if (config_AM_lagrPartTrack_sample_salinity) then
              call mpas_log_write(' testing output for salinity')
-             !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
-
-             !else
+             if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+               call interp_scalars(particleSalinity, activeTracers(index_salinity,:,:), &
+                   verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                   particlePosition(1),particlePosition(2),particlePosition(3), &
+                   xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   xCell, yCell, zCell, &
+                   meshPool, &
+                   cellsOnVertex, &
+                   verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                   zMid, indexLevel)
+             else
                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                  activeTracers(index_salinity,:,iCell), particleSalinity)
-             !end if
+             end if
              call mpas_log_write('done testing output for salinity')
             end if
           end if
@@ -2031,23 +2083,43 @@ contains
             if ( associated(ecosysTracers) ) then
               if (config_AM_lagrPartTrack_sample_DIC) then
                 call mpas_log_write('testing output for DIC')
-                !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
-
-                !else
+                if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                  call interp_scalars(particleDIC, ecosysTracers(index_DIC,:,:), &
+                    verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                    particlePosition(1),particlePosition(2),particlePosition(3), &
+                    xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    xCell, yCell, zCell, &
+                    meshPool, &
+                    cellsOnVertex, &
+                    verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                    zMid, indexLevel)
+                else
                   call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                     ecosysTracers(index_DIC,:,iCell), particleDIC)
-                !end if
+                end if
                 call mpas_log_write('done testing output for DIC')
               end if
 
               if (config_AM_lagrPartTrack_sample_ALK) then
                 call mpas_log_write('testing output for ALK')
-                !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
-
-                !else
+                if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                  call interp_scalars(particleALK, ecosysTracers(index_ALK,:,:), &
+                    verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                    particlePosition(1),particlePosition(2),particlePosition(3), &
+                    xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                    xCell, yCell, zCell, &
+                    meshPool, &
+                    cellsOnVertex, &
+                    verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                    zMid, indexLevel)
+                else
                   call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
                     ecosysTracers(index_ALK,:,iCell), particleALK)
-                !end if
+                end if
                 call mpas_log_write('done testing output for ALK')
               end if
             end if
