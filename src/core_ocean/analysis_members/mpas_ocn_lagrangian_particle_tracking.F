@@ -284,6 +284,7 @@ contains
       integer, pointer :: nCells, nVertLevels, iCell
       integer, dimension(:), pointer :: nCellVerticesArray
       integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnVertex
       logical, pointer :: onSphere
       logical :: config_AM_lagrPartTrack_reset_particles
       character (len=StrKIND), pointer :: config_AM_lagrPartTrack_reset_criteria, &
@@ -315,6 +316,7 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       logical, pointer :: config_AM_lagrPartTrack_sample_temperature
+      logical, pointer :: config_AM_lagrPartTrack_sample_horizontal_interp
       real (kind=RKIND), pointer :: particleTemperature
 
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
@@ -354,6 +356,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_compute_interval', config_AM_lagrPartTrack_compute_interval)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_output_stream', config_AM_lagrPartTrack_output_stream)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_timeIntegration', timeIntegration)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_horizontal_interp', &
+                                             config_AM_lagrPartTrack_sample_horizontal_interp)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
@@ -435,6 +439,7 @@ contains
         call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
         call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nCellVerticesArray)
         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(meshPool, 'cellsOnVertex', cellsOnVertex)
         call mpas_pool_get_array(meshPool, 'indexToCellID', indexToCellID)
 
         call mpas_pool_get_config(meshPool, 'on_a_sphere', onSphere)
@@ -781,8 +786,22 @@ contains
            if ( associated(activeTracers) ) then
              if (config_AM_lagrPartTrack_sample_temperature) then
               call mpas_log_write(' testing output for temperature')
-              call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                activeTracers(index_temperature,:,iCell), particleTemperature)
+              if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+                call interp_scalars(particleTemperature, activeTracers(index_temperature,:,:), &
+                  verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                  particlePosition(1),particlePosition(2),particlePosition(3), &
+                  xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                  xCell, yCell, zCell, &
+                  meshPool, &
+                  cellsOnVertex, &
+                  verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                  zMid, indexLevel)
+              else
+                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                  activeTracers(index_temperature,:,iCell), particleTemperature)
+              end if
               call mpas_log_write('done testing output for temperature')
              end if
 
@@ -1765,6 +1784,7 @@ contains
       integer, pointer :: nCells, nVertLevels
       integer, dimension(:), pointer :: nCellVerticesArray
       integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnVertex
       logical, dimension(:,:), pointer :: ioProcRecvList
       logical, dimension(:), pointer :: ioProcSendList
       logical, pointer :: onSphere
@@ -1787,6 +1807,7 @@ contains
       type (mpas_pool_type), pointer :: tracersPool
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer, pointer :: index_temperature, index_salinity
+      logical, pointer :: config_AM_lagrPartTrack_sample_horizontal_interp
       logical, pointer :: config_AM_lagrPartTrack_sample_temperature
       real (kind=RKIND), pointer :: particleTemperature
       logical, pointer :: config_AM_lagrPartTrack_sample_salinity
@@ -1803,6 +1824,8 @@ contains
 
       err = 0
 
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_horizontal_interp', &
+                                             config_AM_lagrPartTrack_sample_horizontal_interp)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_temperature', config_AM_lagrPartTrack_sample_temperature)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_lagrPartTrack_sample_salinity', config_AM_lagrPartTrack_sample_salinity)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
@@ -1854,6 +1877,7 @@ contains
 
         call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(meshPool, 'cellsOnVertex', cellsOnVertex)
         call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
         call mpas_pool_get_array(meshPool, 'boundaryVertex', boundaryVertex)
         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
@@ -1971,15 +1995,33 @@ contains
           if ( associated(activeTracers) ) then
             if (config_AM_lagrPartTrack_sample_temperature) then
              call mpas_log_write(' testing output for temperature')
-             call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-               activeTracers(index_temperature,:,iCell), particleTemperature)
+             if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+               call interp_scalars(particleTemperature, activeTracers(index_temperature,:,:), &
+                   verticesOnCell(:,iCell), nCellVerticesArray(iCell), &
+                   particlePosition(1),particlePosition(2),particlePosition(3), &
+                   xVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   yVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   zVertex(verticesOnCell(1:nCellVerticesArray(iCell),iCell)), &
+                   xCell, yCell, zCell, &
+                   meshPool, &
+                   cellsOnVertex, &
+                   verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+                   zMid, indexLevel)
+             else
+               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                 activeTracers(index_temperature,:,iCell), particleTemperature)
+             end if
              call mpas_log_write('done testing output for temperature')
             end if
 
             if (config_AM_lagrPartTrack_sample_salinity) then
              call mpas_log_write(' testing output for salinity')
-             call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-               activeTracers(index_salinity,:,iCell), particleSalinity)
+             !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+
+             !else
+               call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                 activeTracers(index_salinity,:,iCell), particleSalinity)
+             !end if
              call mpas_log_write('done testing output for salinity')
             end if
           end if
@@ -1989,15 +2031,23 @@ contains
             if ( associated(ecosysTracers) ) then
               if (config_AM_lagrPartTrack_sample_DIC) then
                 call mpas_log_write('testing output for DIC')
-                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                  ecosysTracers(index_DIC,:,iCell), particleDIC)
+                !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+
+                !else
+                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                    ecosysTracers(index_DIC,:,iCell), particleDIC)
+                !end if
                 call mpas_log_write('done testing output for DIC')
               end if
 
               if (config_AM_lagrPartTrack_sample_ALK) then
                 call mpas_log_write('testing output for ALK')
-                call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
-                  ecosysTracers(index_ALK,:,iCell), particleALK)
+                !if (config_AM_lagrPartTrack_sample_horizontal_interp) then
+
+                !else
+                  call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+                    ecosysTracers(index_ALK,:,iCell), particleALK)
+                !end if
                 call mpas_log_write('done testing output for ALK')
               end if
             end if
@@ -2272,7 +2322,7 @@ contains
         ! will definitely be some error with this type of computation because the buoyancy is not available at this location
         ! the time interpolation, as a consequency, can mix velocities from different buoyancy surfaces in order to advect
         ! the particle
-        call mpas_log_write( 'iLevel = $i',MPAS_LOG_OUT, intArgs=(/ iLevel /) )
+        !call mpas_log_write( 'iLevel = $i',MPAS_LOG_OUT, intArgs=(/ iLevel /) )
       end if
 
       call particle_vertical_treatment(verticalTreatment, indexLevel, nCellVertices, verticesOnCell(:,iCell), &
@@ -2583,7 +2633,7 @@ contains
        ! note, zlevel can be modified near top / bottom of ocean to keep particle in bounds
        zLevelParticle = min(max(zMid(maxLevelCell(iCell),iCell), zLevelParticle), zMid(1,iCell))
        iLevel = mpas_get_vertical_id(maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell))
-       call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
+       !call mpas_log_write('iLevel = $i', intArgs=(/iLevel/))
      else
        call mpas_log_write('Vertical treatment is not defined!', MPAS_LOG_CRIT)
      end if
@@ -2624,6 +2674,250 @@ contains
      !}}}
 
    end subroutine get_vertical_level_info !}}}
+
+
+!***********************************************************************
+!
+!  routine interp_scalars
+!
+!> \brief   Interpolate scalars horizontal with linear interpolation and
+!>          based on a z level criteria (z-level, buoyancy, etc)
+!> \author  Phillip Wolfram
+!> \date    11/13/2018
+!> \details
+!>  This routine interpolates cell scalars linearly horizontally and veritcally
+!>  depending upon a criteria such as z-level, buoyancy, etc.
+!
+!-----------------------------------------------------------------------
+   subroutine interp_scalars(particleScalar, tracerarray, & !{{{
+       verticesOnTheCell, nVertices, &
+       xp,yp,zp, &
+       xv,yv,zv, &
+       xc,yc,zc, &
+       meshPool, &
+       cellsOnVertex, &
+       verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+       zMid, indexLevel)
+
+     implicit none
+
+     !-----------------------------------------------------------------
+     ! input variables
+     !-----------------------------------------------------------------
+     integer, intent (in) :: verticalTreatment                        !< verticalTreatment used for particles
+     integer, dimension(:), pointer :: maxLevelCell                   !< maximum level for each horizontal cell
+     real (kind=RKIND), intent(in) :: buoyancyParticle                !< buoyancy value for particle
+     real (kind=RKIND), dimension(:,:), pointer :: buoyancyTimeInterp !< intepolated buoyancy value
+     real (kind=RKIND), dimension(:,:), pointer :: zMid               !< mid depth z value for each cell
+     integer, intent(in) :: indexLevel                                !< index level for particle vertical location
+     integer, dimension(:), intent(in) :: verticesOnTheCell           !< vertex indices on cell
+     integer, dimension(:,:), pointer, intent(in) :: cellsOnVertex    !< cells ajoined to vertex
+     integer, intent(in) :: nVertices                                 !< number of vertices on the cell
+     real (kind=RKIND), intent(in) :: xp,yp,zp                        !< particle location
+     real (kind=RKIND), dimension(:), intent(in) :: xv,yv,zv          !< spatial location of cell vertices
+     real (kind=RKIND), dimension(:), intent(in) :: xc,yc,zc          !< spatial location of cell centers
+     type (mpas_pool_type), intent(in), pointer :: meshPool           !< meshPool pointer
+     real (kind=RKIND), dimension(:,:), pointer, intent(in) :: tracerarray !< tracer array to be interpolated
+
+     !-----------------------------------------------------------------
+     ! output variables
+     !-----------------------------------------------------------------
+     real (kind=RKIND), pointer :: particleScalar                     !< interpolated scalar value for the particle
+
+     !-----------------------------------------------------------------
+     ! local variables
+     !-----------------------------------------------------------------
+     integer :: iLevel                                       !< vertical level index
+     real (kind=RKIND) :: zLevelParticle                     !< vertical level z location
+     integer :: iCell                                        !< local cell index for horizontal cell location
+     integer :: triangleIndex                                !< index of triangle for interpolation
+     real (kind=RKIND), dimension(3) :: scalarTriangle       !< interpolated values on triangle
+     integer :: iVertex                                      !< vertex index variable
+     real (kind=RKIND), dimension(3, nVertices) :: xVertex   !< coordinates of vertex
+     real (kind=RKIND), dimension(3) :: xPoint               !< coordinates of transformed point for nearest neighbor calc
+     real (kind=RKIND), dimension(3) :: lambda               !< barycentric weights for triangle
+
+     real (kind=RKIND) :: pointRadius   ! magnitude of a point radius
+     logical, pointer :: on_a_sphere    ! flag designating if we are on a sphere
+     logical, pointer :: is_periodic    ! flag designating if periodicity is important
+     real(kind=RKIND), pointer :: x_period, y_period
+     integer, parameter :: vertexDegree = 3                  !< max number of cells on Vertex
+     real(kind=RKIND) :: dx, dy, dz, r2, r2Min
+     real (kind=RKIND), dimension(3,3) :: vertexTriangle
+     integer :: aVertex, vertexID, aCell, aPoint, localCell
+
+     !-----------------------------------------------------------------
+     ! find the vertexID in xVertex closest to the point aPoint
+     !-----------------------------------------------------------------
+
+     ! {{{
+     ! prepare vertex array xVertex needed to find closest vertex to point xPoint ! {{{
+     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
+     call mpas_pool_get_config(meshPool, 'is_periodic', is_periodic)
+     call mpas_pool_get_config(meshPool, 'x_period', x_period)
+     call mpas_pool_get_config(meshPool, 'y_period', y_period)
+
+     if (on_a_sphere) then
+
+       pointRadius = sqrt(xp*xp + yp*yp + zp*zp)
+       xPoint = (/ xp/pointRadius , yp/pointRadius , zp/pointRadius /)
+
+       do aVertex = 1, nVertices
+         pointRadius = sqrt(xv(aVertex)*xv(aVertex) + yv(aVertex)*yv(aVertex) + zv(aVertex)*zv(aVertex))
+         xVertex(:,aVertex) = (/ xv(aVertex), yv(aVertex), zv(aVertex) /) / pointRadius
+       end do
+
+     ! on a plane
+     else
+       xPoint = (/ xp,yp,zp /)
+
+       do aVertex = 1, nVertices
+         if (is_periodic) then
+           xVertex(:, aVertex) = (/ mpas_fix_periodicity(xv(aVertex), xp, x_period), &
+                                    mpas_fix_periodicity(yv(aVertex), yp, y_period), &
+                                    zv(aVertex) /)
+         else
+           xVertex(:, aVertex) = (/ xv(aVertex), yv(aVertex), zv(aVertex) /)
+         end if
+       end do
+     end if
+     !}}}
+
+     ! brute force solution for nearest vertexID of xVertex to the point xPoint ! {{{
+     vertexID = 1
+     dx = xPoint(1) - xVertex(1,vertexID)
+     dy = xPoint(2) - xVertex(2,vertexID)
+     dz = xPoint(3) - xVertex(3,vertexID)
+     r2Min = dx*dx + dy*dy + dz*dz
+
+     ! loop over all the other cells to get minimum
+     do aPoint = 2, nVertices
+       ! compute squared distance
+       dx = xPoint(1) - xVertex(1,aPoint)
+       dy = xPoint(2) - xVertex(2,aPoint)
+       dz = xPoint(3) - xVertex(3,aPoint)
+       r2 = dx*dx + dy*dy + dz*dz
+       if ( r2 < r2Min) then
+         ! we have a new closest point
+         vertexID = aPoint
+         r2Min = r2
+       end if
+     end do
+
+#ifdef MPAS_DEBUG
+     ! check to make sure nearest vertex found makes sense
+     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), realArgs = (/ &
+       xPoint(1), xPoint(2), xPoint(3) /))
+     do aVertex = 1, nVertices
+       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), realArgs = (/ &
+         xVertex(1, aVertex), &
+         xVertex(2, aVertex), &
+         xVertex(3, aVertex) /))
+     end do
+#endif
+     !}}}
+     ! }}}
+
+     !-----------------------------------------------------------------
+     ! for each vertex, determine how to interpolate from neighbooring
+     ! cell values if an edge-case
+     !-----------------------------------------------------------------
+
+     ! {{{
+     ! cellsOnVertex assumes an "empty" neighbor (edge case) is 0
+     do aCell = 1, vertexDegree
+       !call mpas_log_write('CellsOnVertex(vertexID, aCell) = $i', intArgs = (/cellsOnVertex(aCell, vertexID)/))
+       if (cellsOnVertex(aCell, verticesOnTheCell(vertexID)) == 0) then
+
+         call mpas_log_write('Using column interpolation for $i based it is on an edge', intArgs = (/iCell/))
+
+         ! in the case of any edge, just use cell value and return it
+         call get_vertical_level_info(iLevel, zLevelParticle, &
+           verticalTreatment, maxLevelCell, iCell, buoyancyParticle, buoyancyTimeInterp, &
+           zMid, indexLevel)
+
+         call interp_cell_scalars(iLevel, maxLevelCell(iCell), -zLevelParticle, -zMid(:,iCell), &
+           tracerarray(:,iCell), particleScalar)
+
+         return
+       end if
+     end do
+     ! }}}
+
+     !-----------------------------------------------------------------
+     ! perform barycentric interpolation horizontal from
+     ! vertical interpolants
+     !-----------------------------------------------------------------
+
+     ! {{{
+     ! all cellsOnVertex(verticesOnTheCell(vertexID), 1:3) are real cells, for each of triangle vertices
+     ! get cell values for the vertical interpolant for each point of triangle for interpolation
+     vertexTriangle = 0.0_RKIND
+     do aCell = 1, vertexDegree
+
+       localCell = cellsOnVertex(aCell, verticesOnTheCell(vertexID))
+
+       ! perform vertical interpolation for each cell
+       ! return iLevel, zLevelParticle for vertical interpolation of the scalar
+       call get_vertical_level_info(iLevel, zLevelParticle, &
+         verticalTreatment, maxLevelCell, localCell, &
+         buoyancyParticle, buoyancyTimeInterp, &
+         zMid, indexLevel)
+
+       ! perform vertical interpolation for the scalar
+       call interp_cell_scalars(iLevel, maxLevelCell(localCell), &
+         -zLevelParticle, -zMid(:,localCell), &
+         tracerarray(:,localCell), scalarTriangle(aCell))
+
+       ! get coordinates of vertex for triangle for barycentric interpolation prepared
+       if ( (.not. on_a_sphere) .and. is_periodic) then
+         vertexTriangle(1, aCell) = mpas_fix_periodicity(xc(localCell), xp, x_period)
+         vertexTriangle(2, aCell) = mpas_fix_periodicity(yc(localCell), yp, y_period)
+         vertexTriangle(3, aCell) = zc(localCell)
+       else
+         vertexTriangle(1, aCell) = xc(localCell)
+         vertexTriangle(2, aCell) = yc(localCell)
+         vertexTriangle(3, aCell) = zc(localCell)
+       end if
+     end do
+
+     ! perform barycentric interpolation in the horizontal
+     xPoint(1) = xp
+     xPoint(2) = yp
+     xPoint(3) = zp
+     lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
+
+     particleScalar = sum(scalarTriangle * lambda)
+
+!#ifdef MPAS_DEBUG
+     ! check to make sure nearest vertex found makes sense
+     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), realArgs = (/ &
+       xPoint(1), xPoint(2), xPoint(3) /))
+     do aVertex = 1, nVertices
+       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), realArgs = (/ &
+         xVertex(1, aVertex), &
+         xVertex(2, aVertex), &
+         xVertex(3, aVertex) /))
+     end do
+     do aCell = 1, vertexDegree
+       localCell = cellsOnVertex(aCell, verticesOnTheCell(vertexID))
+       call mpas_log_write(' cell id $i $r $r $r', intArgs=(/ localCell/), realArgs = (/&
+                                                              vertexTriangle(1, aCell), &
+                                                              vertexTriangle(2, aCell), &
+                                                              vertexTriangle(3, aCell)/))
+     end do
+     call mpas_log_write('scalar Triangle = $r $r $r', realArgs = &
+       (/scalarTriangle(1), &
+         scalarTriangle(2), &
+         scalarTriangle(3)/))
+     call mpas_log_write('lambda = $r $r $r', realArgs = &
+       (/lambda(1), &
+         lambda(2), &
+         lambda(3)/))
+!#endif
+     !}}}
+
+   end subroutine interp_scalars !}}}
 
 
 !***********************************************************************
