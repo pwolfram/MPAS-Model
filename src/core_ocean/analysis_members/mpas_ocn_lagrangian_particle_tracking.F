@@ -2745,6 +2745,7 @@ contains
      real(kind=RKIND) :: dx, dy, dz, r2, r2Min
      real (kind=RKIND), dimension(3,3) :: vertexTriangle
      integer :: aVertex, vertexID, aCell, aPoint, localCell
+     integer :: ierr = 0
 
      !-----------------------------------------------------------------
      ! find the vertexID in xVertex closest to the point aPoint
@@ -2885,11 +2886,24 @@ contains
      xPoint(1) = xp
      xPoint(2) = yp
      xPoint(3) = zp
-     lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
 
-     particleScalar = sum(scalarTriangle * lambda)
+     ! IEEE_INVALID_FLAG in this wachspress routine, which is designed for
+     ! polygons with more than 3 sides (making it have higher cost too) ...
+     !lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
 
-!#ifdef MPAS_DEBUG
+     ! more robust (and less expensive) barycentric interpolation approach
+     call mpas_calculate_barycentric_weights(xPoint, &
+       vertexTriangle(:,1), vertexTriangle(:,2), vertexTriangle(:,3), &
+       meshPool, &
+       lambda(1), lambda(2), lambda(3), ierr)
+
+     particleScalar = scalarTriangle(1) * lambda(1) + &
+                      scalarTriangle(2) * lambda(2) + &
+                      scalarTriangle(3) * lambda(3)
+     !}}}
+
+     ! debugging output !{{{
+#ifdef MPAS_DEBUG
      ! check to make sure nearest vertex found makes sense
      call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), realArgs = (/ &
        xPoint(1), xPoint(2), xPoint(3) /))
@@ -2914,7 +2928,8 @@ contains
        (/lambda(1), &
          lambda(2), &
          lambda(3)/))
-!#endif
+     call mpas_log_write('ierr = $i', intArgs=(/ierr/))
+#endif
      !}}}
 
    end subroutine interp_scalars !}}}
