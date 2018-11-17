@@ -55,6 +55,10 @@
 			description="Specify whether particles should be reset when they enter the resetInsideRegionMaskValue1 mask."
 			possible_values=".false. or .true."
 		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_horizontal_interp" type="logical" default_value=".true." units="unitless"
+			description="If true, particles horizontally interpolate sample quantities."
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_AM_lagrPartTrack_sample_temperature" type="logical" default_value=".true." units="unitless"
 			description="If true, particles sample temperature."
 			possible_values=".true. or .false."
