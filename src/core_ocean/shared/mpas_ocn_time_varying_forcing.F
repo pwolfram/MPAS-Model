@@ -3,7 +3,7 @@
 !  ocn_forcing
 !
 !> \brief A core forcing module example
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date 2013-2014
 !> \details
 !>  An example of a forcing module that might be implemented in a core
@@ -56,7 +56,7 @@ contains
 !  ocn_forcing_init
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -89,7 +89,7 @@ contains
 !  init_atmospheric_forcing
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -122,7 +122,7 @@ contains
 !  init_atmospheric_forcing_CORE
 !
 !> \brief Initialize the forcing objects
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date 2013-2014
 !> \details
 !>  This routine calls the MPAS_forcing module subroutines that initializes
@@ -286,7 +286,7 @@ contains
 !  ocn_forcing
 !
 !> \brief Retrieve forcing data during time stepping
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date 2013-2014
 !> \details
 !>  This routine calls the MPAS_forcing routine that will perform the
@@ -336,7 +336,7 @@ contains
 !  atmospheric_forcing
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -408,7 +408,7 @@ contains
 !  prepare_atmospheric_coupling_variables_CORE
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -575,7 +575,7 @@ contains
 !  post_atmospheric_coupling
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -681,7 +681,7 @@ contains
 !  post_atmospheric_forcing
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -757,7 +757,7 @@ contains
 !  get_seconds_today
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
@@ -799,7 +799,7 @@ contains
 !  ocn_reset_coupler_fluxes
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date 18th March 2015
 !> \details
 !>
@@ -829,7 +829,7 @@ contains
 !  reset_atmospheric_coupler_fluxes
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date 18th March 2015
 !> \details
 !>
@@ -936,7 +936,7 @@ contains
 !  ocn_forcing_write_restart_times
 !
 !> \brief
-!> \author Adrian K. Turner, LANL
+!> \author Steven Brus, LANL
 !> \date
 !> \details
 !>
