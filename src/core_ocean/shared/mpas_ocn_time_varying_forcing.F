@@ -1,6 +1,6 @@
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_forcing
+!  ocn_forcing
 !
 !> \brief A core forcing module example
 !> \author Adrian K. Turner, LANL
@@ -11,7 +11,7 @@
 !
 !-----------------------------------------------------------------------
 
-module seaice_forcing
+module ocn_forcing
 
   use mpas_derived_types
   use mpas_pool_routines
@@ -24,15 +24,15 @@ module seaice_forcing
 
   private
   public :: &
-       seaice_forcing_init, &
-       seaice_forcing_get, &
-       seaice_forcing_write_restart_times, &
-       seaice_reset_coupler_fluxes,  &
+       ocn_forcing_init, &
+       ocn_forcing_get, &
+       ocn_forcing_write_restart_times, &
+       ocn_reset_coupler_fluxes,  &
        post_atmospheric_coupling,  &
        post_atmospheric_forcing,   &
        post_oceanic_coupling
 
-  type (MPAS_forcing_group_type), pointer :: seaiceForcingGroups
+  type (MPAS_forcing_group_type), pointer :: ocnForcingGroups
 
   ! forcing parameters
   real (kind=RKIND), parameter :: &
@@ -53,7 +53,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_forcing_init
+!  ocn_forcing_init
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -63,7 +63,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_forcing_init(domain)
+  subroutine ocn_forcing_init(domain)
 
     type (domain_type) :: domain
 
@@ -82,7 +82,7 @@ contains
 
     endif
 
-  end subroutine seaice_forcing_init
+  end subroutine ocn_forcing_init
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -160,8 +160,8 @@ contains
 
     ! create the six hourly forcing group
     call MPAS_forcing_init_group(&
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          domain, &
          config_forcing_start_time, &
          config_forcing_cycle_start, &
@@ -174,8 +174,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          "airTemperature", &
          "LYqSixHourlyForcing", &
          "atmos_coupling", &
@@ -187,8 +187,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          "airSpecificHumidity", &
          "LYqSixHourlyForcing", &
          "atmos_coupling", &
@@ -200,8 +200,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          "uAirVelocity", &
          "LYqSixHourlyForcing", &
          "atmos_coupling", &
@@ -213,8 +213,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          "vAirVelocity", &
          "LYqSixHourlyForcing", &
          "atmos_coupling", &
@@ -225,16 +225,16 @@ contains
          "next")
 
     call MPAS_forcing_init_field_data(&
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          domain % streamManager, &
          config_do_restart, &
          .false.)
 
     ! create the monthly forcing group
     call MPAS_forcing_init_group(&
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_monthly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_monthly", &
          domain, &
          '0000-01-01_00:00:00', &
          '0000-01-01_00:00:00', &
@@ -246,8 +246,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_monthly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_monthly", &
          "cloudFraction", &
          "LYqMonthlyForcing", &
          "atmos_forcing", &
@@ -258,8 +258,8 @@ contains
 
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_monthly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_monthly", &
          "rainfallRate", &
          "LYqMonthlyForcing", &
          "atmos_coupling", &
@@ -269,8 +269,8 @@ contains
          forcingIntervalMonthly)
 
     call MPAS_forcing_init_field_data(&
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_monthly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_monthly", &
          domain % streamManager, &
          config_do_restart, &
          .false.)
@@ -283,7 +283,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_forcing
+!  ocn_forcing
 !
 !> \brief Retrieve forcing data during time stepping
 !> \author Adrian K. Turner, LANL
@@ -294,7 +294,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_forcing_get(&
+  subroutine ocn_forcing_get(&
        streamManager, &
        domain, &
        simulationClock, &
@@ -329,7 +329,7 @@ contains
 
     endif
 
-  end subroutine seaice_forcing_get
+  end subroutine ocn_forcing_get
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -370,14 +370,14 @@ contains
     if (trim(config_atmospheric_forcing_type) == "CORE") then
 
        call MPAS_forcing_get_forcing(&
-            seaiceForcingGroups, &
-            "seaice_atmospheric_forcing_sixhrly", &
+            ocnForcingGroups, &
+            "ocn_atmospheric_forcing_sixhrly", &
             streamManager, &
             config_dt)
 
        call MPAS_forcing_get_forcing(&
-            seaiceForcingGroups, &
-            "seaice_atmospheric_forcing_monthly", &
+            ocnForcingGroups, &
+            "ocn_atmospheric_forcing_monthly", &
             streamManager, &
             config_dt)
 
@@ -417,8 +417,8 @@ contains
 
   subroutine prepare_atmospheric_coupling_variables_CORE(block)
 
-    use seaice_constants, only: &
-         seaiceFreshWaterFreezingPoint, &
+    use ocn_constants, only: &
+         ocnFreshWaterFreezingPoint, &
          pii
 
     type (block_type), pointer :: block
@@ -498,8 +498,8 @@ contains
 
     ! get the current time
     call MPAS_forcing_get_forcing_time(&
-         seaiceForcingGroups, &
-         "seaice_atmospheric_forcing_sixhrly", &
+         ocnForcingGroups, &
+         "ocn_atmospheric_forcing_sixhrly", &
          currentForcingTime)
 
     ! get the number of seconds so far today
@@ -512,7 +512,7 @@ contains
 
        ! limit air temperature values where ice is present
        if (iceAreaCell(iCell) > 0.1_RKIND) then
-          airTemperature(iCell) = min(airTemperature(iCell), seaiceFreshWaterFreezingPoint + 0.1_RKIND)
+          airTemperature(iCell) = min(airTemperature(iCell), ocnFreshWaterFreezingPoint + 0.1_RKIND)
        endif
 
        ! prevent supersaturated humidity
@@ -584,8 +584,8 @@ contains
 
   subroutine post_atmospheric_coupling(block)
 
-    use seaice_mesh, only: &
-         seaice_latlon_vector_rotation_forward
+    use ocn_mesh, only: &
+         ocn_latlon_vector_rotation_forward
 
     type (block_type), pointer :: block
 
@@ -652,7 +652,7 @@ contains
        windSpeed(iCell) = sqrt(uAirVelocity(iCell)**2 + vAirVelocity(iCell)**2)
 
        ! rotate velocities from geographical to local
-       call seaice_latlon_vector_rotation_forward(&
+       call ocn_latlon_vector_rotation_forward(&
             uAirVelocity(iCell), &
             vAirVelocity(iCell), &
             uAirVelocity(iCell), &
@@ -690,9 +690,9 @@ contains
 
   subroutine post_atmospheric_forcing(block)
 
-    use seaice_constants, only: &
-         seaiceAirSpecificHeat, &
-         seaiceLatentHeatSublimation
+    use ocn_constants, only: &
+         ocnAirSpecificHeat, &
+         ocnLatentHeatSublimation
 
     type (block_type), pointer :: block
 
@@ -739,8 +739,8 @@ contains
     do iCell = 1, nCellsSolve
 
        ! transfer coefficients
-       sensibleTransferCoefficient(iCell) = 1.20e-3_RKIND * seaiceAirSpecificHeat       * airDensity(iCell) * windSpeed(iCell)
-       latentTransferCoefficient(iCell)   = 1.50e-3_RKIND * seaiceLatentHeatSublimation * airDensity(iCell) * windSpeed(iCell)
+       sensibleTransferCoefficient(iCell) = 1.20e-3_RKIND * ocnAirSpecificHeat       * airDensity(iCell) * windSpeed(iCell)
+       latentTransferCoefficient(iCell)   = 1.50e-3_RKIND * ocnLatentHeatSublimation * airDensity(iCell) * windSpeed(iCell)
 
        ! air stresses
        airStressCoefficient = 0.0012_RKIND * airDensity(iCell) * windSpeed(iCell)
@@ -796,7 +796,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_reset_coupler_fluxes
+!  ocn_reset_coupler_fluxes
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -806,7 +806,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_reset_coupler_fluxes(domain)
+  subroutine ocn_reset_coupler_fluxes(domain)
 
     type(domain_type) :: domain
 
@@ -822,7 +822,7 @@ contains
 
     endif
 
-  end subroutine seaice_reset_coupler_fluxes
+  end subroutine ocn_reset_coupler_fluxes
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -933,7 +933,7 @@ contains
 !-----------------------------------------------------------------------
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_forcing_write_restart_times
+!  ocn_forcing_write_restart_times
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -943,7 +943,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_forcing_write_restart_times(domain)
+  subroutine ocn_forcing_write_restart_times(domain)
 
     type(domain_type) :: domain
 
@@ -954,12 +954,12 @@ contains
 
     if (config_use_forcing) then
 
-       call MPAS_forcing_write_restart_times(seaiceForcingGroups)
+       call MPAS_forcing_write_restart_times(ocnForcingGroups)
 
     endif
 
-  end subroutine seaice_forcing_write_restart_times
+  end subroutine ocn_forcing_write_restart_times
 
 !-----------------------------------------------------------------------
 
-end module seaice_forcing
+end module ocn_forcing
