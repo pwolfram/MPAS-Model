@@ -202,12 +202,12 @@ contains
          forcingIntervalSixHourly, &
          "next")
 
-    call MPAS_forcing_init_field_data(&
-         ocnForcingGroups, &
-         "ocn_atmospheric_forcing", &
-         domain % streamManager, &
-         config_do_restart, &
-         .false.)
+    call MPAS_forcing_init_field_data(&          
+         ocnForcingGroups, &                     ! forcingGroupHead
+         "ocn_atmospheric_forcing", &            ! forcingGroupName
+         domain % streamManager, &               ! streamManager
+         config_do_restart, &                    ! restart
+         .false.)                                ! interpolateAtInit
 
   end subroutine init_atmospheric_forcing_WINDPRES
 
@@ -402,10 +402,10 @@ contains
 
        ! rotate velocities from geographical to local
        call ocn_latlon_vector_rotation_forward(&
-            uAirVelocity(iCell), &
-            vAirVelocity(iCell), &
-            uAirVelocity(iCell), &
-            vAirVelocity(iCell), &
+            uWind(iCell), &
+            vWind(iCell), &
+            uWind(iCell), &
+            vWind(iCell), &
             latCell(iCell), &
             lonCell(iCell), &
             xCell(iCell), &
@@ -437,17 +437,20 @@ contains
     type (mpas_pool_type), pointer :: &
          mesh, &
          atmosCoupling, &
-         atmosForcing
+         atmosForcing, &
+         forcingPool
 
     real(kind=RKIND), dimension(:), pointer :: &
-         uAirVelocity, &
-         vAirVelocity, &
+         uWind, &
+         vWind, &
          windSpeed, &
-         uAirStress, &
-         vAirStress
+         windStressZonal, &
+         windStressMeridional
 
     real(kind=RKIND) :: &
-         airStressCoefficient
+         airStressCoefficient, &
+         rhoAir, &
+         rhoWater
 
     integer, pointer :: &
          nCellsSolve
@@ -458,26 +461,28 @@ contains
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
     call MPAS_pool_get_subpool(block % structs, "atmos_coupling", atmosCoupling)
     call MPAS_pool_get_subpool(block % structs, "atmos_forcing", atmosForcing)
+    call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
 
     call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
 
-    call MPAS_pool_get_array(atmosCoupling, "airDensity", airDensity)
-    call MPAS_pool_get_array(atmosCoupling, "uAirVelocity", uAirVelocity)
-    call MPAS_pool_get_array(atmosCoupling, "vAirVelocity", vAirVelocity)
+    call MPAS_pool_get_array(atmosCoupling, "uWind", uWind)
+    call MPAS_pool_get_array(atmosCoupling, "vWind", vWind)
 
     call MPAS_pool_get_array(atmosForcing, "windSpeed", windSpeed)
-    call MPAS_pool_get_array(atmosForcing, "sensibleTransferCoefficient", sensibleTransferCoefficient)
-    call MPAS_pool_get_array(atmosForcing, "latentTransferCoefficient", latentTransferCoefficient)
-    call MPAS_pool_get_array(atmosForcing, "uAirStress", uAirStress)
-    call MPAS_pool_get_array(atmosForcing, "vAirStress", vAirStress)
+
+    call MPAS_pool_get_array(forcingPool, "windStressZonal", windStressZonal)
+    call MPAS_pool_get_array(forcingPool, "windStressMeridional", windStressMeridional)
+  
+    rhoAir = 1.225_RKIND
+    rhoWater = 997.0_RKIND
 
     do iCell = 1, nCellsSolve
 
        ! air stresses
-       airStressCoefficient = 0.0012_RKIND * airDensity(iCell) * windSpeed(iCell)
+       airStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeed(iCell)) * 0.001_RKIND * rhoAir/rhoWater
 
-       uAirStress(iCell) = uAirVelocity(iCell) * airStressCoefficient
-       vAirStress(iCell) = vAirVelocity(iCell) * airStressCoefficient
+       windStressZonal(iCell) = uWind(iCell) * windSpeed(iCell) * airStressCoefficient
+       windStressMeridional(iCell) = vWind(iCell) * windSpeed(iCell) * airStressCoefficient
 
     enddo ! iCell
 
