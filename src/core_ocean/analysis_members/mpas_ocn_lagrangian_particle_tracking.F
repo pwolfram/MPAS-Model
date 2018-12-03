@@ -2818,6 +2818,7 @@ contains
      real(kind=RKIND) :: dx, dy, dz, r2, r2Min
      real (kind=RKIND), dimension(3,3) :: vertexTriangle
      integer :: aVertex, vertexID, aCell, aPoint, localCell
+     integer, pointer :: nCells
      real(kind=RKIND), parameter :: eps = 1.0e-12_RKIND
      integer :: ierr = 0
 
@@ -2846,6 +2847,7 @@ contains
      call mpas_pool_get_config(meshPool, 'is_periodic', is_periodic)
      call mpas_pool_get_config(meshPool, 'x_period', x_period)
      call mpas_pool_get_config(meshPool, 'y_period', y_period)
+     call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
      ! check to see if point is in vertex polygon
      xPoint(1) = xp
@@ -2908,6 +2910,7 @@ contains
        ! (no horizontal interpolation)
        if (vertexID .eq. -1 .or. &
          cellsOnVertex(aCell, verticesOnTheCell(vertexID)) == 0 .or. &
+         cellsOnVertex(aCell, verticesOnTheCell(vertexID)) == nCells+1 .or. &
          (cellsOnVertex(1, verticesOnTheCell(vertexID)) == cellsOnVertex(2, verticesOnTheCell(vertexID))) .or. &
          (cellsOnVertex(2, verticesOnTheCell(vertexID)) == cellsOnVertex(3, verticesOnTheCell(vertexID))) .or. &
          (cellsOnVertex(3, verticesOnTheCell(vertexID)) == cellsOnVertex(1, verticesOnTheCell(vertexID)))) then
