@@ -2806,6 +2806,7 @@ contains
      real (kind=RKIND), dimension(3) :: scalarTriangle       !< interpolated values on triangle
      integer :: iVertex                                      !< vertex index variable
      real (kind=RKIND), dimension(3, nVertices) :: xVertex   !< coordinates of vertex
+     logical, dimension(nVertices) :: interiorVertex         !< determines if vertex is on the interior
      real (kind=RKIND), dimension(3) :: xPoint               !< coordinates of transformed point for nearest neighbor calc
      real (kind=RKIND), dimension(3) :: lambda               !< barycentric weights for triangle
 
@@ -2817,75 +2818,79 @@ contains
      real(kind=RKIND) :: dx, dy, dz, r2, r2Min
      real (kind=RKIND), dimension(3,3) :: vertexTriangle
      integer :: aVertex, vertexID, aCell, aPoint, localCell
+     real(kind=RKIND), parameter :: eps = 1.0e-12_RKIND
      integer :: ierr = 0
 
+     ! assume that we cannot do spatial interpolation
+     vertexID = -1
+
      !-----------------------------------------------------------------
-     ! find the vertexID in xVertex closest to the point aPoint
+     ! find the vertexID of the polygon containing the point aPoint
      !-----------------------------------------------------------------
 
      ! {{{
+     ! for each vertex assess whether it is an interior vertex
+     ! interior vertex until proven otherwise
+     interiorVertex(:) = .true.
+     do aPoint = 1, nVertices
+       do aVertex = 1, vertexDegree
+         !call mpas_log_write('CellsOnVertex($i, $i) = $i', intArgs = (/aPoint, aVertex, cellsOnVertex(aPoint, aVertex)/))
+         if (cellsOnVertex(aPoint, verticesOnTheCell(aVertex)) == 0) then
+           interiorVertex(aPoint) = .false.
+         end if
+       end do
+     end do
+
      ! prepare vertex array xVertex needed to find closest vertex to point xPoint ! {{{
      call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
      call mpas_pool_get_config(meshPool, 'is_periodic', is_periodic)
      call mpas_pool_get_config(meshPool, 'x_period', x_period)
      call mpas_pool_get_config(meshPool, 'y_period', y_period)
 
-     if (on_a_sphere) then
+     ! check to see if point is in vertex polygon
+     xPoint(1) = xp
+     xPoint(2) = yp
+     xPoint(3) = zp
 
-       pointRadius = sqrt(xp*xp + yp*yp + zp*zp)
-       xPoint = (/ xp/pointRadius , yp/pointRadius , zp/pointRadius /)
+     ! for each vertex assess whether it is valid to use
+     do aVertex = 1, nVertices
+       if (interiorVertex(aVertex)) then
+         do aCell = 1, vertexDegree
 
-       do aVertex = 1, nVertices
-         pointRadius = sqrt(xv(aVertex)*xv(aVertex) + yv(aVertex)*yv(aVertex) + zv(aVertex)*zv(aVertex))
-         xVertex(:,aVertex) = (/ xv(aVertex), yv(aVertex), zv(aVertex) /) / pointRadius
-       end do
+           localCell = cellsOnVertex(aCell, verticesOnTheCell(aVertex))
 
-     ! on a plane
-     else
-       xPoint = (/ xp,yp,zp /)
+           ! get coordinates of vertex for triangle for barycentric interpolation prepared
+           if ( (.not. on_a_sphere) .and. is_periodic) then
+             vertexTriangle(aCell, 1) = mpas_fix_periodicity(xc(localCell), xp, x_period)
+             vertexTriangle(aCell, 2) = mpas_fix_periodicity(yc(localCell), yp, y_period)
+             vertexTriangle(aCell, 3) = zc(localCell)
+           else
+             vertexTriangle(aCell, 1) = xc(localCell)
+             vertexTriangle(aCell, 2) = yc(localCell)
+             vertexTriangle(aCell, 3) = zc(localCell)
+           end if
+         end do
 
-       do aVertex = 1, nVertices
-         if (is_periodic) then
-           xVertex(:, aVertex) = (/ mpas_fix_periodicity(xv(aVertex), xp, x_period), &
-                                    mpas_fix_periodicity(yv(aVertex), yp, y_period), &
-                                    zv(aVertex) /)
-         else
-           xVertex(:, aVertex) = (/ xv(aVertex), yv(aVertex), zv(aVertex) /)
+         ! check to make sure the point xPoint is in the vertexTriangle
+         if ( mpas_point_in_polygon(xPoint, vertexTriangle, on_a_sphere) ) then
+           vertexID = aVertex
          end if
-       end do
-     end if
-     !}}}
-
-     ! brute force solution for nearest vertexID of xVertex to the point xPoint ! {{{
-     vertexID = 1
-     dx = xPoint(1) - xVertex(1,vertexID)
-     dy = xPoint(2) - xVertex(2,vertexID)
-     dz = xPoint(3) - xVertex(3,vertexID)
-     r2Min = dx*dx + dy*dy + dz*dz
-
-     ! loop over all the other cells to get minimum
-     do aPoint = 2, nVertices
-       ! compute squared distance
-       dx = xPoint(1) - xVertex(1,aPoint)
-       dy = xPoint(2) - xVertex(2,aPoint)
-       dz = xPoint(3) - xVertex(3,aPoint)
-       r2 = dx*dx + dy*dy + dz*dz
-       if ( r2 < r2Min) then
-         ! we have a new closest point
-         vertexID = aPoint
-         r2Min = r2
        end if
      end do
+     !}}}
+
 
 #ifdef MPAS_DEBUG
      ! check to make sure nearest vertex found makes sense
-     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), realArgs = (/ &
-       xPoint(1), xPoint(2), xPoint(3) /))
+     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), &
+       realArgs = (/ xPoint(1), xPoint(2), xPoint(3) /))
      do aVertex = 1, nVertices
-       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), realArgs = (/ &
+       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), &
+         realArgs = (/ &
          xVertex(1, aVertex), &
          xVertex(2, aVertex), &
-         xVertex(3, aVertex) /))
+         xVertex(3, aVertex)  &
+         /))
      end do
 #endif
      !}}}
@@ -2899,8 +2904,13 @@ contains
      ! {{{
      ! cellsOnVertex assumes an "empty" neighbor (edge case) is 0
      do aCell = 1, vertexDegree
-       !call mpas_log_write('CellsOnVertex(vertexID, aCell) = $i', intArgs = (/cellsOnVertex(aCell, vertexID)/))
-       if (cellsOnVertex(aCell, verticesOnTheCell(vertexID)) == 0) then
+       ! only handles the case where the vertex is an interior vertex, otherwise treat as cell-based value
+       ! (no horizontal interpolation)
+       if (vertexID .eq. -1 .or. &
+         cellsOnVertex(aCell, verticesOnTheCell(vertexID)) == 0 .or. &
+         (cellsOnVertex(1, verticesOnTheCell(vertexID)) == cellsOnVertex(2, verticesOnTheCell(vertexID))) .or. &
+         (cellsOnVertex(2, verticesOnTheCell(vertexID)) == cellsOnVertex(3, verticesOnTheCell(vertexID))) .or. &
+         (cellsOnVertex(3, verticesOnTheCell(vertexID)) == cellsOnVertex(1, verticesOnTheCell(vertexID)))) then
 
          call mpas_log_write('Using column interpolation for $i based it is on an edge', intArgs = (/iCell/))
 
@@ -2959,15 +2969,31 @@ contains
      xPoint(2) = yp
      xPoint(3) = zp
 
-     ! IEEE_INVALID_FLAG in this wachspress routine, which is designed for
-     ! polygons with more than 3 sides (making it have higher cost too) ...
+     !!! this wachspress routine is designed for
+     !!! polygons with more than 3 sides (making it have higher cost too) ...
      !lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
 
-     ! more robust (and less expensive) barycentric interpolation approach
+     ! more robust (and less expensive) barycentric interpolation approach,
+     ! assuming a PURE interpolation (which cannot be guaranteed here)
      call mpas_calculate_barycentric_weights(xPoint, &
        vertexTriangle(:,1), vertexTriangle(:,2), vertexTriangle(:,3), &
        meshPool, &
        lambda(1), lambda(2), lambda(3), ierr)
+
+#ifdef MPAS_DEBUG
+     ! ensure interpolation is obtained
+     if (minval(lambda) < -eps .or. maxval(lambda) > (1.0_RKIND + eps) .or. &
+         abs(1.0_RKIND - sum(lambda)) > eps ) then
+       call mpas_log_write('Not a valid barycentric interpolation: ' // &
+         'lambda = $r $r $r vertexID = $i cellsOnVertex(:, verticesOnTheCell(vertexID)) = $i $i $i', MPAS_LOG_ERR, &
+         realArgs=(/lambda(1), lambda(2), lambda(3)/), &
+         intArgs=(/vertexID, &
+         cellsOnVertex(1, verticesOnTheCell(vertexID)), &
+         cellsOnVertex(2, verticesOnTheCell(vertexID)), &
+         cellsOnVertex(3, verticesOnTheCell(vertexID))/))
+     end if
+#endif
+
 
      particleScalar = scalarTriangle(1) * lambda(1) + &
                       scalarTriangle(2) * lambda(2) + &
@@ -2977,20 +3003,22 @@ contains
      ! debugging output !{{{
 #ifdef MPAS_DEBUG
      ! check to make sure nearest vertex found makes sense
-     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), realArgs = (/ &
-       xPoint(1), xPoint(2), xPoint(3) /))
+     call mpas_log_write('vertexID = $i, xPoint = $r $r $r', intArgs = (/ vertexID /), &
+       realArgs = (/ xPoint(1), xPoint(2), xPoint(3) /))
      do aVertex = 1, nVertices
-       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), realArgs = (/ &
+       call mpas_log_write('$i xVertex = $r $r $r$', intArgs = (/ aVertex /), &
+         realArgs = (/ &
          xVertex(1, aVertex), &
          xVertex(2, aVertex), &
          xVertex(3, aVertex) /))
      end do
      do aCell = 1, vertexDegree
        localCell = cellsOnVertex(aCell, verticesOnTheCell(vertexID))
-       call mpas_log_write(' cell id $i $r $r $r', intArgs=(/ localCell/), realArgs = (/&
-                                                              vertexTriangle(1, aCell), &
-                                                              vertexTriangle(2, aCell), &
-                                                              vertexTriangle(3, aCell)/))
+       call mpas_log_write(' cell id $i $r $r $r', intArgs=(/ localCell/), &
+         realArgs = (/&
+         vertexTriangle(1, aCell), &
+         vertexTriangle(2, aCell), &
+         vertexTriangle(3, aCell)/))
      end do
      call mpas_log_write('scalar Triangle = $r $r $r', realArgs = &
        (/scalarTriangle(1), &
