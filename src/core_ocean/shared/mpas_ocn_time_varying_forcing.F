@@ -1,6 +1,6 @@
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_forcing
+!  ocn_time_varying_forcing
 !
 !> \brief Module to handle time-varying forcing for the ocean core 
 !> \author Steven Brus, LANL
@@ -12,7 +12,7 @@
 !
 !-----------------------------------------------------------------------
 
-module ocn_forcing
+module ocn_time_varying_forcing
 
   use mpas_derived_types
   use mpas_pool_routines
@@ -167,10 +167,10 @@ contains
          domain % streamManager, &               ! streamManager
          ocnForcingGroups, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
-         "uWind", &                              ! forcingName
+         "windSpeedU", &                         ! forcingName
          "atmospheric_forcing", &                ! forcingStreamID
-         "atmos_coupling", &                     ! poolname
-         "uWind", &                              ! fieldname
+         "forcing", &                            ! poolname
+         "windSpeedU", &                         ! fieldname
          "linear", &                             ! interpolationType
          forcingReferenceTimeSixHourly, &        ! forcingReferenceTimeStr
          forcingIntervalSixHourly, &             ! forcingIntervalStr
@@ -180,10 +180,10 @@ contains
          domain % streamManager, &
          ocnForcingGroups, &
          "ocn_atmospheric_forcing", &
-         "vWind", &
+         "windSpeedV", &
          "atmospheric_forcing", &
-         "atmos_coupling", &
-         "vWind", &
+         "forcing", &
+         "windSpeedV", &
          "linear", &
          forcingReferenceTimeSixHourly, &
          forcingIntervalSixHourly, &
@@ -195,7 +195,7 @@ contains
          "ocn_atmospheric_forcing", &
          "atmosphericPressure", &
          "atmospheric_forcing", &
-         "atmos_coupling", &
+         "forcing", &
          "atmospericPressure", &
          "linear", &
          forcingReferenceTimeSixHourly, &
@@ -231,17 +231,13 @@ contains
   subroutine ocn_forcing_get(&
        streamManager, &
        domain, &
-       simulationClock, &
-       firstTimeStep)
+       simulationClock)
 
     type (MPAS_streamManager_type), intent(inout) :: streamManager
 
     type (domain_type) :: domain
 
     type (MPAS_clock_type) :: simulationClock
-
-    logical, intent(in) :: &
-         firstTimeStep
 
     logical, pointer :: &
          config_use_forcing
@@ -266,6 +262,8 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
+
+
 !  atmospheric_forcing
 !
 !> \brief
@@ -285,7 +283,7 @@ contains
 
     type (domain_type) :: domain
 
-    type (MPAS_clock_type) :: simulationClock
+    type (MPAS_time_type) :: currentForcingTime
 
     type (block_type), pointer :: block
 
@@ -302,16 +300,16 @@ contains
     ! use the forcing layer to get data
     if (trim(config_atmospheric_forcing_type) == "WINDPRES") then
 
-       call MPAS_forcing_get_forcing(&
-            ocnForcingGroups, &
-            "ocn_atmospheric_forcing", &
-            streamManager, &
-            config_dt)
+       call MPAS_forcing_get_forcing(&    
+            ocnForcingGroups, &               ! forcingGroupHead
+            "ocn_atmospheric_forcing", &      ! forcingGroupName
+            streamManager, &                  ! streamManager
+            config_dt)                        ! dt
 
        call MPAS_forcing_get_forcing_time(&
-            ocnForcingGroups, &
-            "ocn_atmospheric_forcing", &
-            currentForcingTime)
+            ocnForcingGroups, &               ! forcingGroupHead
+            "ocn_atmospheric_forcing", &      ! forcingGroupName
+            currentForcingTime)               ! forcingTime
 
     endif
 
@@ -350,13 +348,12 @@ contains
 
     type (mpas_pool_type), pointer :: &
          mesh, &
-         atmosCoupling, &
-         atmosForcing
+         forcingPool
 
     real(kind=RKIND), dimension(:), pointer :: &
-         uWind, &
-         vWind, &
-         windSpeed, &
+         windSpeedU, &
+         windSpeedV, &
+         windSpeedMagnitude, &
          latCell, &
          lonCell, &
          xCell, &
@@ -376,8 +373,7 @@ contains
          iCell
 
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
-    call MPAS_pool_get_subpool(block % structs, "atmos_coupling", atmosCoupling)
-    call MPAS_pool_get_subpool(block % structs, "atmos_forcing", atmosForcing)
+    call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
 
     call MPAS_pool_get_config(block % configs, "config_rotate_cartesian_grid", config_rotate_cartesian_grid)
 
@@ -390,22 +386,21 @@ contains
     call MPAS_pool_get_array(mesh, "yCell", yCell)
     call MPAS_pool_get_array(mesh, "zCell", zCell)
 
-    call MPAS_pool_get_array(atmosCoupling, "uWind", uWind)
-    call MPAS_pool_get_array(atmosCoupling, "vWind", vWind)
-
-    call MPAS_pool_get_array(atmosForcing, "windSpeed", windSpeed)
+    call MPAS_pool_get_array(forcingPool, "windSpeedU", windSpeedU)
+    call MPAS_pool_get_array(forcingPool, "windSpeedV", windSpeedV)
+    call MPAS_pool_get_array(forcingPool, "windSpeedMagnitude", windSpeedMagnitude)
 
     do iCell = 1, nCellsSolve
 
        ! wind speed
-       windSpeed(iCell) = sqrt(uWind(iCell)**2 + vWind(iCell)**2)
+       windSpeedMagnitude(iCell) = sqrt(windSpeedU(iCell)**2 + windSpeedV(iCell)**2)
 
        ! rotate velocities from geographical to local
        call ocn_latlon_vector_rotation_forward(&
-            uWind(iCell), &
-            vWind(iCell), &
-            uWind(iCell), &
-            vWind(iCell), &
+            windSpeedU(iCell), &
+            windSpeedV(iCell), &
+            windSpeedU(iCell), &
+            windSpeedV(iCell), &
             latCell(iCell), &
             lonCell(iCell), &
             xCell(iCell), &
@@ -434,23 +429,30 @@ contains
 
     type (block_type), pointer :: block
 
+    type (MPAS_time_type) :: currentForcingTime
+
     type (mpas_pool_type), pointer :: &
          mesh, &
-         atmosCoupling, &
-         atmosForcing, &
-         forcingPool
+         forcingPool, &
+         diagnosticsPool
 
     real(kind=RKIND), dimension(:), pointer :: &
-         uWind, &
-         vWind, &
-         windSpeed, &
+         windSpeedU, &
+         windSpeedV, &
+         windSpeedMagnitude, &
          windStressZonal, &
          windStressMeridional
 
     real(kind=RKIND) :: &
          airStressCoefficient, &
          rhoAir, &
-         rhoWater
+         rhoWater, &
+         ramp, &
+         currentTime
+
+    real(kind=RKIND), pointer:: &
+        config_forcing_ramp, &
+        daysSinceStartOfSim
 
     integer, pointer :: &
          nCellsSolve
@@ -458,73 +460,37 @@ contains
     integer :: &
          iCell
 
+    call MPAS_pool_get_config(block % configs, "config_forcing_ramp", config_forcing_ramp)
+
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
-    call MPAS_pool_get_subpool(block % structs, "atmos_coupling", atmosCoupling)
-    call MPAS_pool_get_subpool(block % structs, "atmos_forcing", atmosForcing)
     call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
+    call MPAS_pool_get_subpool(block % structs, "diagnositcs", diagnosticsPool)
 
     call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
 
-    call MPAS_pool_get_array(atmosCoupling, "uWind", uWind)
-    call MPAS_pool_get_array(atmosCoupling, "vWind", vWind)
-
-    call MPAS_pool_get_array(atmosForcing, "windSpeed", windSpeed)
-
+    call MPAS_pool_get_arrat(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
+    call MPAS_pool_get_array(forcingPool, "windSpeedU", windSpeedU)
+    call MPAS_pool_get_array(forcingPool, "windSpeedV", windSpeedV)
+    call MPAS_pool_get_array(forcingPool, "windSpeedMagnitude", windSpeedMagnitude)
     call MPAS_pool_get_array(forcingPool, "windStressZonal", windStressZonal)
     call MPAS_pool_get_array(forcingPool, "windStressMeridional", windStressMeridional)
   
     rhoAir = 1.225_RKIND
-    rhoWater = 997.0_RKIND
+    rhoWater = 997.0_RKIND 
+
+    ramp = tanh((2.0_RKIND*daysSinceStartOfSim)/config_forcing_ramp)
 
     do iCell = 1, nCellsSolve
 
        ! air stresses
-       airStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeed(iCell)) * 0.001_RKIND * rhoAir/rhoWater
+       airStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir/rhoWater
 
-       windStressZonal(iCell) = uWind(iCell) * windSpeed(iCell) * airStressCoefficient
-       windStressMeridional(iCell) = vWind(iCell) * windSpeed(iCell) * airStressCoefficient
+       windStressZonal(iCell) = windSpeedU(iCell) * windSpeedMagnitude(iCell) * airStressCoefficient
+       windStressMeridional(iCell) = windSpeedV(iCell) * windSpeedMagnitude(iCell) * airStressCoefficient
 
     enddo ! iCell
 
   end subroutine post_atmospheric_forcing
-
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  get_seconds_today
-!
-!> \brief
-!> \author Steven Brus, LANL
-!> \date
-!> \details
-!>
-!
-!-----------------------------------------------------------------------
-
-  subroutine get_seconds_today(&
-       currentTime, &
-       secondsToday, &
-       dayOfYear)
-
-    type(MPAS_time_type), intent(in) :: &
-         currentTime
-
-    real(kind=RKIND), intent(out) :: &
-         secondsToday
-
-    integer, intent(out) :: &
-         dayOfYear
-
-    integer :: &
-         H, M, S, S_d, S_n
-
-    call mpas_get_time(currentTime, DoY=dayOfYear, H=H, M=M, S=S, S_n=S_n, S_d=S_d)
-
-    secondsToday = real(H,RKIND)*3600.0_RKIND + &
-                   real(M,RKIND)*60.0_RKIND + &
-                   real(S,RKIND) + &
-                   real(S_n,RKIND)/real(S_d,RKIND)
-
-  end subroutine get_seconds_today
 
 !-----------------------------------------------------------------------
 ! coupler fluxes initialization
@@ -554,7 +520,6 @@ contains
     if (config_use_column_package) then
 
        call reset_atmospheric_coupler_fluxes(domain)
-       call reset_ocean_coupler_fluxes(domain)
 
     endif
 
@@ -582,7 +547,7 @@ contains
          atmosFluxes, &
          shortwave, &
          velocitySolver, &
-         atmosCoupling, &
+         forcingPool, &
          biogeochemistry
 
     real(kind=RKIND), dimension(:), pointer :: &
@@ -612,7 +577,7 @@ contains
        call MPAS_pool_get_subpool(block % structs, "atmos_fluxes", atmosFluxes)
        call MPAS_pool_get_subpool(block % structs, "shortwave", shortwave)
        call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolver)
-       call MPAS_pool_get_subpool(block % structs, "atmos_coupling", atmosCoupling)
+       call MPAS_pool_get_subpool(block % structs, "atmos_coupling", forcingPool)
 
        call MPAS_pool_get_array(atmosFluxes, "sensibleHeatFlux", sensibleHeatFlux)
        call MPAS_pool_get_array(atmosFluxes, "latentHeatFlux", latentHeatFlux)
@@ -624,9 +589,9 @@ contains
 
        call MPAS_pool_get_array(shortwave, "absorbedShortwaveFlux", absorbedShortwaveFlux)
 
-       call MPAS_pool_get_array(atmosCoupling, 'atmosReferenceSpeed10m', atmosReferenceSpeed10m)
-       call MPAS_pool_get_array(atmosCoupling, 'atmosReferenceTemperature2m', atmosReferenceTemperature2m)
-       call MPAS_pool_get_array(atmosCoupling, 'atmosReferenceHumidity2m', atmosReferenceHumidity2m)
+       call MPAS_pool_get_array(forcingPool, 'atmosReferenceSpeed10m', atmosReferenceSpeed10m)
+       call MPAS_pool_get_array(forcingPool, 'atmosReferenceTemperature2m', atmosReferenceTemperature2m)
+       call MPAS_pool_get_array(forcingPool, 'atmosReferenceHumidity2m', atmosReferenceHumidity2m)
 
        sensibleHeatFlux            = 0.0_RKIND
        latentHeatFlux              = 0.0_RKIND
@@ -642,22 +607,6 @@ contains
        atmosReferenceTemperature2m = 0.0_RKIND
        atmosReferenceHumidity2m    = 0.0_RKIND
 
-       ! biogeochemistry
-       call MPAS_pool_get_config(block % configs, "config_use_column_biogeochemistry", config_use_column_biogeochemistry)
-
-       if (config_use_column_biogeochemistry) then
-
-          call MPAS_pool_get_subpool(block % structs, "biogeochemistry", biogeochemistry)
-
-          call MPAS_pool_get_array(biogeochemistry, "atmosBioFluxes", atmosBioFluxes)
-          call MPAS_pool_get_array(biogeochemistry, "atmosBlackCarbonFlux", atmosBlackCarbonFlux)
-          call MPAS_pool_get_array(biogeochemistry, "atmosDustFlux", atmosDustFlux)
-
-          atmosBioFluxes              = 0.0_RKIND
-          atmosBlackCarbonFlux        = 0.0_RKIND
-          atmosDustFlux               = 0.0_RKIND
-
-       endif
 
        block => block % next
     end do
@@ -698,4 +647,4 @@ contains
 
 !-----------------------------------------------------------------------
 
-end module ocn_forcing
+end module ocn_time_varying_forcing
