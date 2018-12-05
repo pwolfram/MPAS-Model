@@ -316,9 +316,6 @@ contains
     block => domain % blocklist
     do while (associated(block))
 
-       ! perform post coupling operations
-       call post_atmospheric_coupling(block)
-
        ! perform post forcing
        call post_atmospheric_forcing(block)
 
@@ -326,92 +323,6 @@ contains
     end do
 
   end subroutine atmospheric_forcing
-
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  post_atmospheric_coupling
-!
-!> \brief
-!> \author Steven Brus, LANL
-!> \date
-!> \details
-!>
-!
-!-----------------------------------------------------------------------
-
-  subroutine post_atmospheric_coupling(block)
-
-    !use ocn_mesh, only: &
-    !     ocn_latlon_vector_rotation_forward
-
-    type (block_type), pointer :: block
-
-    type (mpas_pool_type), pointer :: &
-         mesh, &
-         forcingPool
-
-    real(kind=RKIND), dimension(:), pointer :: &
-         windSpeedU, &
-         windSpeedV, &
-         windSpeedMagnitude, &
-         latCell, &
-         lonCell, &
-         xCell, &
-         yCell, &
-         zCell
-
-    real(kind=RKIND), pointer :: &
-         sphere_radius
-
-    logical, pointer :: &
-         config_rotate_cartesian_grid
-
-    integer, pointer :: &
-         nCellsSolve
-
-    integer :: &
-         iCell
-
-    call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
-    call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
-
-    call MPAS_pool_get_config(block % configs, "config_rotate_cartesian_grid", config_rotate_cartesian_grid)
-
-    call MPAS_pool_get_config(mesh, "sphere_radius", sphere_radius)
-    call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
-
-    call MPAS_pool_get_array(mesh, "latCell", latCell)
-    call MPAS_pool_get_array(mesh, "lonCell", lonCell)
-    call MPAS_pool_get_array(mesh, "xCell", xCell)
-    call MPAS_pool_get_array(mesh, "yCell", yCell)
-    call MPAS_pool_get_array(mesh, "zCell", zCell)
-
-    call MPAS_pool_get_array(forcingPool, "windSpeedU", windSpeedU)
-    call MPAS_pool_get_array(forcingPool, "windSpeedV", windSpeedV)
-    call MPAS_pool_get_array(forcingPool, "windSpeedMagnitude", windSpeedMagnitude)
-
-    do iCell = 1, nCellsSolve
-
-       ! wind speed
-       windSpeedMagnitude(iCell) = sqrt(windSpeedU(iCell)**2 + windSpeedV(iCell)**2)
-
-       ! rotate velocities from geographical to local
-       !call ocn_latlon_vector_rotation_forward(&
-       !     windSpeedU(iCell), &
-       !     windSpeedV(iCell), &
-       !     windSpeedU(iCell), &
-       !     windSpeedV(iCell), &
-       !     latCell(iCell), &
-       !     lonCell(iCell), &
-       !     xCell(iCell), &
-       !     yCell(iCell), &
-       !     zCell(iCell), &
-       !     sphere_radius, &
-       !     config_rotate_cartesian_grid)
-
-    enddo ! iCell
-
-  end subroutine post_atmospheric_coupling
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -495,7 +406,9 @@ contains
 !-----------------------------------------------------------------------
 ! coupler fluxes initialization
 !-----------------------------------------------------------------------
-
+!
+! Not needed now, but may be for cumlative forcing i.e. river flux
+!
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
 !  ocn_reset_coupler_fluxes
@@ -508,22 +421,22 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_reset_coupler_fluxes(domain)
-
-    type(domain_type) :: domain
-
-    logical, pointer :: &
-         config_use_column_package
-
-    call MPAS_pool_get_config(domain % blocklist % configs, "config_use_column_package", config_use_column_package)
-
-    if (config_use_column_package) then
-
-       call reset_atmospheric_coupler_fluxes(domain)
-
-    endif
-
-  end subroutine ocn_reset_coupler_fluxes
+!  subroutine ocn_reset_coupler_fluxes(domain)
+!
+!    type(domain_type) :: domain
+!
+!    logical, pointer :: &
+!         config_use_column_package
+!
+!    call MPAS_pool_get_config(domain % blocklist % configs, "config_use_column_package", config_use_column_package)
+!
+!    if (config_use_column_package) then
+!
+!       call reset_atmospheric_coupler_fluxes(domain)
+!
+!    endif
+!
+!  end subroutine ocn_reset_coupler_fluxes
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -537,81 +450,82 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine reset_atmospheric_coupler_fluxes(domain)
 
-    type(domain_type) :: domain
-
-    type(block_type), pointer :: block
-
-    type(MPAS_pool_type), pointer :: &
-         atmosFluxes, &
-         shortwave, &
-         velocitySolver, &
-         forcingPool, &
-         biogeochemistry
-
-    real(kind=RKIND), dimension(:), pointer :: &
-         sensibleHeatFlux, &
-         latentHeatFlux, &
-         absorbedShortwaveFlux, &
-         longwaveUp, &
-         evaporativeWaterFlux, &
-         airStressCellU, &
-         airStressCellV, &
-         atmosReferenceSpeed10m, &
-         atmosReferenceTemperature2m, &
-         atmosReferenceHumidity2m
-
-    real(kind=RKIND), dimension(:,:), pointer :: &
-         atmosBioFluxes, &
-         atmosBlackCarbonFlux, &
-         atmosDustFlux
-
-    logical, pointer :: &
-         config_use_column_biogeochemistry
-
-    block => domain % blocklist
-    do while (associated(block))
-
-       ! physics
-       call MPAS_pool_get_subpool(block % structs, "atmos_fluxes", atmosFluxes)
-       call MPAS_pool_get_subpool(block % structs, "shortwave", shortwave)
-       call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolver)
-       call MPAS_pool_get_subpool(block % structs, "atmos_coupling", forcingPool)
-
-       call MPAS_pool_get_array(atmosFluxes, "sensibleHeatFlux", sensibleHeatFlux)
-       call MPAS_pool_get_array(atmosFluxes, "latentHeatFlux", latentHeatFlux)
-       call MPAS_pool_get_array(atmosFluxes, "longwaveUp", longwaveUp)
-       call MPAS_pool_get_array(atmosFluxes, "evaporativeWaterFlux", evaporativeWaterFlux)
-
-       call MPAS_pool_get_array(velocitySolver, "airStressCellU", airStressCellU)
-       call MPAS_pool_get_array(velocitySolver, "airStressCellV", airStressCellV)
-
-       call MPAS_pool_get_array(shortwave, "absorbedShortwaveFlux", absorbedShortwaveFlux)
-
-       call MPAS_pool_get_array(forcingPool, 'atmosReferenceSpeed10m', atmosReferenceSpeed10m)
-       call MPAS_pool_get_array(forcingPool, 'atmosReferenceTemperature2m', atmosReferenceTemperature2m)
-       call MPAS_pool_get_array(forcingPool, 'atmosReferenceHumidity2m', atmosReferenceHumidity2m)
-
-       sensibleHeatFlux            = 0.0_RKIND
-       latentHeatFlux              = 0.0_RKIND
-       longwaveUp                  = 0.0_RKIND
-       evaporativeWaterFlux        = 0.0_RKIND
-
-       airStressCellU              = 0.0_RKIND
-       airStressCellV              = 0.0_RKIND
-
-       absorbedShortwaveFlux       = 0.0_RKIND
-
-       atmosReferenceSpeed10m      = 0.0_RKIND
-       atmosReferenceTemperature2m = 0.0_RKIND
-       atmosReferenceHumidity2m    = 0.0_RKIND
-
-
-       block => block % next
-    end do
-
-  end subroutine reset_atmospheric_coupler_fluxes
+!  subroutine reset_atmospheric_coupler_fluxes(domain)
+!
+!    type(domain_type) :: domain
+!
+!    type(block_type), pointer :: block
+!
+!    type(MPAS_pool_type), pointer :: &
+!         atmosFluxes, &
+!         shortwave, &
+!         velocitySolver, &
+!         forcingPool, &
+!         biogeochemistry
+!
+!    real(kind=RKIND), dimension(:), pointer :: &
+!         sensibleHeatFlux, &
+!         latentHeatFlux, &
+!         absorbedShortwaveFlux, &
+!         longwaveUp, &
+!         evaporativeWaterFlux, &
+!         airStressCellU, &
+!         airStressCellV, &
+!         atmosReferenceSpeed10m, &
+!         atmosReferenceTemperature2m, &
+!         atmosReferenceHumidity2m
+!
+!    real(kind=RKIND), dimension(:,:), pointer :: &
+!         atmosBioFluxes, &
+!         atmosBlackCarbonFlux, &
+!         atmosDustFlux
+!
+!    logical, pointer :: &
+!         config_use_column_biogeochemistry
+!
+!    block => domain % blocklist
+!    do while (associated(block))
+!
+!       ! physics
+!       call MPAS_pool_get_subpool(block % structs, "atmos_fluxes", atmosFluxes)
+!       call MPAS_pool_get_subpool(block % structs, "shortwave", shortwave)
+!       call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolver)
+!       call MPAS_pool_get_subpool(block % structs, "atmos_coupling", forcingPool)
+!
+!       call MPAS_pool_get_array(atmosFluxes, "sensibleHeatFlux", sensibleHeatFlux)
+!       call MPAS_pool_get_array(atmosFluxes, "latentHeatFlux", latentHeatFlux)
+!       call MPAS_pool_get_array(atmosFluxes, "longwaveUp", longwaveUp)
+!       call MPAS_pool_get_array(atmosFluxes, "evaporativeWaterFlux", evaporativeWaterFlux)
+!
+!       call MPAS_pool_get_array(velocitySolver, "airStressCellU", airStressCellU)
+!       call MPAS_pool_get_array(velocitySolver, "airStressCellV", airStressCellV)
+!
+!       call MPAS_pool_get_array(shortwave, "absorbedShortwaveFlux", absorbedShortwaveFlux)
+!
+!       call MPAS_pool_get_array(forcingPool, 'atmosReferenceSpeed10m', atmosReferenceSpeed10m)
+!       call MPAS_pool_get_array(forcingPool, 'atmosReferenceTemperature2m', atmosReferenceTemperature2m)
+!       call MPAS_pool_get_array(forcingPool, 'atmosReferenceHumidity2m', atmosReferenceHumidity2m)
+!
+!       sensibleHeatFlux            = 0.0_RKIND
+!       latentHeatFlux              = 0.0_RKIND
+!       longwaveUp                  = 0.0_RKIND
+!       evaporativeWaterFlux        = 0.0_RKIND
+!
+!       airStressCellU              = 0.0_RKIND
+!       airStressCellV              = 0.0_RKIND
+!
+!       absorbedShortwaveFlux       = 0.0_RKIND
+!
+!       atmosReferenceSpeed10m      = 0.0_RKIND
+!       atmosReferenceTemperature2m = 0.0_RKIND
+!       atmosReferenceHumidity2m    = 0.0_RKIND
+!
+!
+!       block => block % next
+!    end do
+!
+!  end subroutine reset_atmospheric_coupler_fluxes
 
 !-----------------------------------------------------------------------
 ! restart
