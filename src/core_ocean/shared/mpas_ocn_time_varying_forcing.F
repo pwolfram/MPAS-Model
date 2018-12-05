@@ -25,9 +25,9 @@ module ocn_time_varying_forcing
 
   private
   public :: &
-       ocn_forcing_init, &
-       ocn_forcing_get, &
-       ocn_forcing_write_restart_times, &
+       ocn_time_varying_forcing_init, &
+       ocn_time_varying_forcing_get, &
+       ocn_time_varying_forcing_write_restart_times, &
        ocn_reset_coupler_fluxes,  &
        post_atmospheric_coupling,  &
        post_atmospheric_forcing
@@ -42,7 +42,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_forcing_init
+!  ocn_time_varying_forcing_init
 !
 !> \brief Driver for ocean core forcing initialization
 !> \author Steven Brus, LANL
@@ -52,7 +52,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_forcing_init(domain)
+  subroutine ocn_time_varying_forcing_init(domain)
 
     type (domain_type) :: domain
 
@@ -75,7 +75,7 @@ contains
 
     endif
 
-  end subroutine ocn_forcing_init
+  end subroutine ocn_time_varying_forcing_init
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -217,7 +217,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_forcing
+!  ocn_time_varying_forcing_get
 !
 !> \brief Retrieve forcing data during time stepping
 !> \author Steven Brus, LANL
@@ -228,7 +228,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_forcing_get(&
+  subroutine ocn_time_varying_forcing_get(&
        streamManager, &
        domain, &
        simulationClock)
@@ -258,12 +258,10 @@ contains
 
     endif
 
-  end subroutine ocn_forcing_get
+  end subroutine ocn_time_varying_forcing_get
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-
-
 !  atmospheric_forcing
 !
 !> \brief
@@ -282,6 +280,8 @@ contains
     type (MPAS_streamManager_type), intent(inout) :: streamManager
 
     type (domain_type) :: domain
+
+    type (MPAS_clock_type) :: simulationClock
 
     type (MPAS_time_type) :: currentForcingTime
 
@@ -341,8 +341,8 @@ contains
 
   subroutine post_atmospheric_coupling(block)
 
-    use ocn_mesh, only: &
-         ocn_latlon_vector_rotation_forward
+    !use ocn_mesh, only: &
+    !     ocn_latlon_vector_rotation_forward
 
     type (block_type), pointer :: block
 
@@ -396,18 +396,18 @@ contains
        windSpeedMagnitude(iCell) = sqrt(windSpeedU(iCell)**2 + windSpeedV(iCell)**2)
 
        ! rotate velocities from geographical to local
-       call ocn_latlon_vector_rotation_forward(&
-            windSpeedU(iCell), &
-            windSpeedV(iCell), &
-            windSpeedU(iCell), &
-            windSpeedV(iCell), &
-            latCell(iCell), &
-            lonCell(iCell), &
-            xCell(iCell), &
-            yCell(iCell), &
-            zCell(iCell), &
-            sphere_radius, &
-            config_rotate_cartesian_grid)
+       !call ocn_latlon_vector_rotation_forward(&
+       !     windSpeedU(iCell), &
+       !     windSpeedV(iCell), &
+       !     windSpeedU(iCell), &
+       !     windSpeedV(iCell), &
+       !     latCell(iCell), &
+       !     lonCell(iCell), &
+       !     xCell(iCell), &
+       !     yCell(iCell), &
+       !     zCell(iCell), &
+       !     sphere_radius, &
+       !     config_rotate_cartesian_grid)
 
     enddo ! iCell
 
@@ -468,7 +468,7 @@ contains
 
     call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
 
-    call MPAS_pool_get_arrat(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
+    call MPAS_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
     call MPAS_pool_get_array(forcingPool, "windSpeedU", windSpeedU)
     call MPAS_pool_get_array(forcingPool, "windSpeedV", windSpeedV)
     call MPAS_pool_get_array(forcingPool, "windSpeedMagnitude", windSpeedMagnitude)
@@ -618,7 +618,7 @@ contains
 !-----------------------------------------------------------------------
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_forcing_write_restart_times
+!  ocn_time_varying_forcing_write_restart_times
 !
 !> \brief
 !> \author Steven Brus, LANL
@@ -628,7 +628,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_forcing_write_restart_times(domain)
+  subroutine ocn_time_varying_forcing_write_restart_times(domain)
 
     type(domain_type) :: domain
 
@@ -643,7 +643,7 @@ contains
 
     endif
 
-  end subroutine ocn_forcing_write_restart_times
+  end subroutine ocn_time_varying_forcing_write_restart_times
 
 !-----------------------------------------------------------------------
 

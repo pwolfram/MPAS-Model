@@ -536,8 +536,8 @@ module ocn_forward_mode
       endif
 
       ! initialize time-varying forcing 
-      call ocn_forcing_init(domain)
-      call ocn_forcing_get(domain % streamManager, domain, domain % clock)
+      call ocn_time_varying_forcing_init(domain)
+      call ocn_time_varying_forcing_get(domain % streamManager, domain, domain % clock)
 
       ! During integration, time level 1 stores the model state at the beginning of the
       !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
@@ -639,7 +639,7 @@ module ocn_forward_mode
             if (config_use_activeTracers_surface_restoring .and. config_use_surface_salinity_monthly_restoring)  &
                call ocn_salinity_restoring_forcing_write_restart(domain)
             
-            call ocn_forcing_write_restart_times(domain)
+            call ocn_time_varying_forcing_write_restart_times(domain)
          end if
 
          call mpas_timer_start('io_write')
@@ -681,7 +681,7 @@ module ocn_forward_mode
          endif
 
          ! read in next time level data required for time-varying forcing
-         call ocn_forcing_get(domain % streamManager, domain, domain % clock)
+         call ocn_time_varying_forcing_get(domain % streamManager, domain, domain % clock)
 
          ! Validate that the state is OK to run with for the next timestep.
          call ocn_validate_state(domain, timeLevel=1)
