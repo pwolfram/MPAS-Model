@@ -27,10 +27,7 @@ module ocn_time_varying_forcing
   public :: &
        ocn_time_varying_forcing_init, &
        ocn_time_varying_forcing_get, &
-       ocn_time_varying_forcing_write_restart_times, &
-       ocn_reset_coupler_fluxes,  &
-       post_atmospheric_coupling,  &
-       post_atmospheric_forcing
+       ocn_time_varying_forcing_write_restart_times
 
   type (MPAS_forcing_group_type), pointer :: ocnForcingGroups
 
