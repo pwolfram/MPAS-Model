@@ -2836,7 +2836,7 @@ contains
      do aPoint = 1, nVertices
        do aVertex = 1, vertexDegree
          !call mpas_log_write('CellsOnVertex($i, $i) = $i', intArgs = (/aPoint, aVertex, cellsOnVertex(aPoint, aVertex)/))
-         if (cellsOnVertex(aPoint, verticesOnTheCell(aVertex)) == 0) then
+         if (cellsOnVertex(aVertex, verticesOnTheCell(aPoint)) == 0) then
            interiorVertex(aPoint) = .false.
          end if
        end do
