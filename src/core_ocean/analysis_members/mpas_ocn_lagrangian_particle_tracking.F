@@ -2789,7 +2789,7 @@ contains
      real (kind=RKIND), dimension(:), intent(in) :: xv,yv,zv          !< spatial location of cell vertices
      real (kind=RKIND), dimension(:), intent(in) :: xc,yc,zc          !< spatial location of cell centers
      type (mpas_pool_type), intent(in), pointer :: meshPool           !< meshPool pointer
-     real (kind=RKIND), dimension(:,:), pointer, intent(in) :: tracerarray !< tracer array to be interpolated
+     real (kind=RKIND), dimension(:,:), intent(in) :: tracerarray     !< tracer array to be interpolated
 
      !-----------------------------------------------------------------
      ! output variables
