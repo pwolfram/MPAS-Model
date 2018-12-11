@@ -2879,6 +2879,13 @@ contains
          end if
        end if
      end do
+
+     !! normalize 3D points on sphere
+     !if ( on_a_sphere .and. .not. is_periodic) then
+     !  pointRadius = sqrt(xp*xp + yp*yp + zp*zp)
+     !  xPoint = xPoint/pointRadius
+     !  vertexTriangle = vertexTriangle/pointRadius
+     !end if
      !}}}
 
 
@@ -2915,7 +2922,7 @@ contains
          (cellsOnVertex(2, verticesOnTheCell(vertexID)) == cellsOnVertex(3, verticesOnTheCell(vertexID))) .or. &
          (cellsOnVertex(3, verticesOnTheCell(vertexID)) == cellsOnVertex(1, verticesOnTheCell(vertexID)))) then
 
-         call mpas_log_write('Using column interpolation for $i based it is on an edge', intArgs = (/iCell/))
+         !call mpas_log_write('Using column interpolation for $i because it is on an edge', intArgs = (/iCell/))
 
          ! in the case of any edge, just use cell value and return it
          call get_vertical_level_info(iLevel, zLevelParticle, &
@@ -2972,18 +2979,25 @@ contains
      xPoint(2) = yp
      xPoint(3) = zp
 
+     !! normalize 3D points on sphere
+     !if ( on_a_sphere .and. .not. is_periodic) then
+     !  pointRadius = sqrt(xp*xp + yp*yp + zp*zp)
+     !  xPoint = xPoint/pointRadius
+     !  vertexTriangle = vertexTriangle/pointRadius
+     !end if
+
      !!! this wachspress routine is designed for
      !!! polygons with more than 3 sides (making it have higher cost too) ...
-     !lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
+     lambda = mpas_wachspress_coordinates(vertexDegree, vertexTriangle, xPoint, meshPool)
 
      ! more robust (and less expensive) barycentric interpolation approach,
      ! assuming a PURE interpolation (which cannot be guaranteed here)
-     call mpas_calculate_barycentric_weights(xPoint, &
-       vertexTriangle(:,1), vertexTriangle(:,2), vertexTriangle(:,3), &
-       meshPool, &
-       lambda(1), lambda(2), lambda(3), ierr)
+     !call mpas_calculate_barycentric_weights(xPoint, &
+     !  vertexTriangle(:,1), vertexTriangle(:,2), vertexTriangle(:,3), &
+     !  meshPool, &
+     !  lambda(1), lambda(2), lambda(3), ierr)
 
-#ifdef MPAS_DEBUG
+!#ifdef MPAS_DEBUG
      ! ensure interpolation is obtained
      if (minval(lambda) < -eps .or. maxval(lambda) > (1.0_RKIND + eps) .or. &
          abs(1.0_RKIND - sum(lambda)) > eps ) then
@@ -2995,7 +3009,7 @@ contains
          cellsOnVertex(2, verticesOnTheCell(vertexID)), &
          cellsOnVertex(3, verticesOnTheCell(vertexID))/))
      end if
-#endif
+!#endif
 
 
      particleScalar = scalarTriangle(1) * lambda(1) + &
@@ -3338,7 +3352,7 @@ contains
      ! check to make sure points are in range
      ! optimization point: smarter algorithm won't have to call this ever
      if(.not.((phiInterp <= phiVals(iHigh)) .and. (phiInterp >= phiVals(iLow)))) then
-       call mpas_log_write( 'Warning: fast interpolation failed, trying general, brute force search for interpolation bounds')
+       !call mpas_log_write( 'Warning: fast interpolation failed, trying general, brute force search for interpolation bounds')
        !print *,  'iLow = ', iLow, ' iHigh = ', iHigh
        !print *,  'phiInterp = ', phiInterp , ' phiLow =',  phiVals(iLow), ' phiHigh = ', phiVals(iHigh)
        call get_bounding_indices_brute_force(nVertLevels, phiInterp, phiVals, iLow, iHigh)
@@ -3390,6 +3404,8 @@ contains
          iLow  = aLevel+1
          iHigh = aLevel
          exit
+       else
+         call mpas_log_write('Value for interpolation was not found!', MPAS_LOG_CRIT)
        end if
      end do
 
