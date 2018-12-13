@@ -121,9 +121,6 @@ contains
 
     type(domain_type) :: domain
 
-    real(kind=RKIND), pointer :: &
-         config_dt
-
     character(len=strKIND), pointer :: &
          config_forcing_start_time, &
          config_forcing_cycle_start, &
@@ -138,7 +135,6 @@ contains
 
     ! get atmospheric forcing configuration options
     call MPAS_pool_get_config(domain % configs, "config_forcing_start_time", config_forcing_start_time)
-    call MPAS_pool_get_config(domain % configs, "config_dt", config_dt)
     call MPAS_pool_get_config(domain % configs, "config_forcing_cycle_start", config_forcing_cycle_start)
     call MPAS_pool_get_config(domain % configs, "config_forcing_cycle_duration", config_forcing_cycle_duration)
     call MPAS_pool_get_config(domain % configs, "config_do_restart", config_do_restart)
@@ -285,15 +281,23 @@ contains
 
     type (block_type), pointer :: block
 
-    real(kind=RKIND), pointer :: &
-         config_dt
+    character(len=StrKIND), pointer :: config_dt
 
-    character(len=strKIND), pointer :: &
-         config_atmospheric_forcing_type
+    character(len=strKIND), pointer :: config_atmospheric_forcing_type
+
+    type (MPAS_timeInterval_type) :: timeStepESMF
+
+    real (kind=RKIND) :: dtSim
+
+    integer :: err
 
     ! configurations
     call mpas_pool_get_config(domain % configs, 'config_dt', config_dt)
     call mpas_pool_get_config(domain % configs, 'config_atmospheric_forcing_type', config_atmospheric_forcing_type)
+
+    ! convert config_dt to real
+    call mpas_set_timeInterval(timeStepESMF, timeString=config_dt,ierr=err)
+    call mpas_get_timeInterval(timeStepESMF, dt=dtSim)
 
     ! use the forcing layer to get data
     if (trim(config_atmospheric_forcing_type) == "WINDPRES") then
@@ -302,7 +306,7 @@ contains
             ocnForcingGroups, &               ! forcingGroupHead
             "ocn_atmospheric_forcing", &      ! forcingGroupName
             streamManager, &                  ! streamManager
-            config_dt)                        ! dt
+            dtSim)                            ! dt
 
        call MPAS_forcing_get_forcing_time(&
             ocnForcingGroups, &               ! forcingGroupHead
