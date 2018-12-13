@@ -133,10 +133,8 @@ contains
          config_do_restart
 
     character(len=strKIND) :: &
-         forcingIntervalSixHourly, &
-         forcingReferenceTimeSixHourly, &
-         forcingIntervalMonthly, &
-         forcingReferenceTimeMonthly
+         forcingInterval, &
+         forcingReferenceTime
 
     ! get atmospheric forcing configuration options
     call MPAS_pool_get_config(domain % configs, "config_forcing_start_time", config_forcing_start_time)
@@ -156,10 +154,11 @@ contains
          config_do_restart, &                    ! restart
          .false.)                                ! forcingCycleStartInclusive
 
-    forcingIntervalSixHourly = "06:00:00"
-    forcingReferenceTimeSixHourly = "2000-01-01_00:00:00"
+    forcingInterval = "01:00:00"
+    forcingReferenceTime = "0001-01-01_00:00:00"
 
 
+    ! windSpeedU init
     call MPAS_forcing_init_field(&               
          domain % streamManager, &               ! streamManager
          ocnForcingGroups, &                     ! forcingGroupHead
@@ -169,10 +168,11 @@ contains
          "forcing", &                            ! poolname
          "windSpeedU", &                         ! fieldname
          "linear", &                             ! interpolationType
-         forcingReferenceTimeSixHourly, &        ! forcingReferenceTimeStr
-         forcingIntervalSixHourly, &             ! forcingIntervalStr
+         forcingReferenceTime, &                 ! forcingReferenceTimeStr
+         forcingInterval, &                      ! forcingIntervalStr
          "next")                                 ! forcingInitializationType
 
+    ! windSpeedV init
     call MPAS_forcing_init_field(&
          domain % streamManager, &
          ocnForcingGroups, &
@@ -182,10 +182,11 @@ contains
          "forcing", &
          "windSpeedV", &
          "linear", &
-         forcingReferenceTimeSixHourly, &
-         forcingIntervalSixHourly, &
+         forcingReferenceTime, &
+         forcingInterval, &
          "next")
 
+    ! atmosphericPressure init
     call MPAS_forcing_init_field(&
          domain % streamManager, &
          ocnForcingGroups, &
@@ -193,10 +194,10 @@ contains
          "atmosphericPressure", &
          "atmospheric_forcing", &
          "forcing", &
-         "atmospericPressure", &
+         "atmosphericPressure", &
          "linear", &
-         forcingReferenceTimeSixHourly, &
-         forcingIntervalSixHourly, &
+         forcingReferenceTime, &
+         forcingInterval, &
          "next")
 
     call MPAS_forcing_init_field_data(&          
