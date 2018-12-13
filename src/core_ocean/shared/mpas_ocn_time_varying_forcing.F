@@ -353,7 +353,7 @@ contains
          windStressMeridional
 
     real(kind=RKIND) :: &
-         airStressCoefficient, &
+         windStressCoefficient, &
          rhoAir, &
          rhoWater, &
          ramp, &
@@ -392,10 +392,10 @@ contains
     do iCell = 1, nCellsSolve
 
        ! air stresses
-       airStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir/rhoWater
+       windStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir/rhoWater
 
-       windStressZonal(iCell) = windSpeedU(iCell) * windSpeedMagnitude(iCell) * airStressCoefficient
-       windStressMeridional(iCell) = windSpeedV(iCell) * windSpeedMagnitude(iCell) * airStressCoefficient
+       windStressZonal(iCell) = ramp * windSpeedU(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
+       windStressMeridional(iCell) = ramp * windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
 
     enddo ! iCell
 
