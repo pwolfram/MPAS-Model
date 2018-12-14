@@ -539,8 +539,8 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'particleSalinity', particleSalinity)
 
           if (config_use_ecosysTracers) then
-            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
-            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleDIC', particleDIC)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleALK', particleALK)
           end if
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
@@ -1966,14 +1966,9 @@ contains
           call mpas_pool_get_array(particle % haloDataPool, 'particleTemperature', particleTemperature)
           call mpas_pool_get_array(particle % haloDataPool, 'particleSalinity', particleSalinity)
           if (config_use_ecosysTracers) then
-            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
-            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleDIC', particleDIC)
+            call mpas_pool_get_array(particle % haloDataPool, 'particleALK', particleALK)
           end if 
-
-          if (config_use_ecosysTracers) then
-            call mpas_pool_get_array(particle % haloDataPool, 'DIC', particleDIC)
-            call mpas_pool_get_array(particle % haloDataPool, 'ALK', particleALK)
-          end if
 
 
 !          call mpas_pool_get_array(particle % haloDataPool, 'lonVel', lonVel)
