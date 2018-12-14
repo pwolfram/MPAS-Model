@@ -161,7 +161,7 @@ contains
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          "windSpeedU", &                         ! forcingName
          "atmospheric_forcing", &                ! forcingStreamID
-         "forcing", &                            ! poolname
+         "time_varying_forcing", &               ! poolname
          "windSpeedU", &                         ! fieldname
          "linear", &                             ! interpolationType
          forcingReferenceTime, &                 ! forcingReferenceTimeStr
@@ -175,7 +175,7 @@ contains
          "ocn_atmospheric_forcing", &
          "windSpeedV", &
          "atmospheric_forcing", &
-         "forcing", &
+         "time_varying_forcing", &
          "windSpeedV", &
          "linear", &
          forcingReferenceTime, &
@@ -187,10 +187,10 @@ contains
          domain % streamManager, &
          ocnForcingGroups, &
          "ocn_atmospheric_forcing", &
-         "atmosphericPressure", &
+         "atmosPressure", &
          "atmospheric_forcing", &
-         "forcing", &
-         "atmosphericPressure", &
+         "time_varying_forcing", &
+         "atmosPressure", &
          "linear", &
          forcingReferenceTime, &
          forcingInterval, &
@@ -347,6 +347,7 @@ contains
     type (mpas_pool_type), pointer :: &
          mesh, &
          forcingPool, &
+         timeVaryingForcingPool, &
          diagnosticsPool
 
     real(kind=RKIND), dimension(:), pointer :: &
@@ -354,7 +355,9 @@ contains
          windSpeedV, &
          windSpeedMagnitude, &
          windStressZonal, &
-         windStressMeridional
+         windStressMeridional, &
+         atmosPressure, &
+         atmosphericPressure
 
     real(kind=RKIND) :: &
          windStressCoefficient, &
@@ -377,17 +380,21 @@ contains
 
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
     call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
+    call MPAS_pool_get_subpool(block % structs, "time_varying_forcing", timeVaryingForcingPool)
     call MPAS_pool_get_subpool(block % structs, "diagnositcs", diagnosticsPool)
 
     call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
 
     call MPAS_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
-    call MPAS_pool_get_array(forcingPool, "windSpeedU", windSpeedU)
-    call MPAS_pool_get_array(forcingPool, "windSpeedV", windSpeedV)
-    call MPAS_pool_get_array(forcingPool, "windSpeedMagnitude", windSpeedMagnitude)
+    call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedU", windSpeedU)
+    call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedV", windSpeedV)
+    call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedMagnitude", windSpeedMagnitude)
     call MPAS_pool_get_array(forcingPool, "windStressZonal", windStressZonal)
     call MPAS_pool_get_array(forcingPool, "windStressMeridional", windStressMeridional)
   
+    call MPAS_pool_get_array(timeVaryingForcingPool, "atmosPressure", atmosPressure)
+    call MPAS_pool_get_array(forcingPool, "atmosphericPressure", atmosphericPressure)
+
     rhoAir = 1.225_RKIND
     rhoWater = 997.0_RKIND 
 
@@ -402,6 +409,8 @@ contains
        windStressMeridional(iCell) = ramp * windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
 
     enddo ! iCell
+
+    atmosphericPressure = atmosPressure
 
   end subroutine post_atmospheric_forcing
 
