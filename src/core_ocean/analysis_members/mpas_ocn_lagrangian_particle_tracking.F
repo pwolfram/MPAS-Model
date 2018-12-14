@@ -2043,7 +2043,7 @@ contains
       real (kind=RKIND), pointer :: particleDIC
       logical, pointer :: config_AM_lagrPartTrack_sample_ALK
       real (kind=RKIND), pointer :: particleALK
-      logical, pointer :: config_AM_lagrPartTrack_sample_PO$
+      logical, pointer :: config_AM_lagrPartTrack_sample_PO4
       real (kind=RKIND), pointer :: particlePO4
       logical, pointer :: config_AM_lagrPartTrack_sample_NO3
       real (kind=RKIND), pointer :: particleNO3
