@@ -2996,7 +2996,7 @@
 			 packages="frazilIce"
 		/>
 	</var_struct>
-	<var_struct name="time_varying_forcing" time_levs="1">
+	<var_struct name="timeVaryingForcing" time_levs="1">
 
 		<var name="windSpeedU" type="real" dimensions="nCells Time" units="m/s"
 			 description="Zonal (eastward) component of wind speed at cell centers from coupler. Positive easthward."

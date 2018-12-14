@@ -161,7 +161,7 @@ contains
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          "windSpeedU", &                         ! forcingName
          "atmospheric_forcing", &                ! forcingStreamID
-         "time_varying_forcing", &               ! poolname
+         "timeVaryingForcing", &                 ! poolname
          "windSpeedU", &                         ! fieldname
          "linear", &                             ! interpolationType
          forcingReferenceTime, &                 ! forcingReferenceTimeStr
@@ -175,7 +175,7 @@ contains
          "ocn_atmospheric_forcing", &
          "windSpeedV", &
          "atmospheric_forcing", &
-         "time_varying_forcing", &
+         "timeVaryingForcing", &
          "windSpeedV", &
          "linear", &
          forcingReferenceTime, &
@@ -189,7 +189,7 @@ contains
          "ocn_atmospheric_forcing", &
          "atmosPressure", &
          "atmospheric_forcing", &
-         "time_varying_forcing", &
+         "timeVaryingForcing", &
          "atmosPressure", &
          "linear", &
          forcingReferenceTime, &
