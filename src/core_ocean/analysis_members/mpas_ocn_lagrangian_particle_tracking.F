@@ -343,7 +343,7 @@ contains
       real (kind=RKIND), pointer :: particleALK
 
       ! PO4
-      logical, pointer :: config_AM_lagrPartTrack_sample_PO$
+      logical, pointer :: config_AM_lagrPartTrack_sample_PO4
       real (kind=RKIND), pointer :: particlePO4
       
       ! NO3
