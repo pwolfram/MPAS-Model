@@ -74,6 +74,30 @@
 		<nml_option name="config_AM_lagrPartTrack_sample_ALK" type="logical" default_value=".false." units="unitless"
 			description="If true, particles sample ALK."
 			possible_values=".true. or .false."
+         />
+		<nml_option name="config_AM_lagrPartTrack_sample_PO4" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample PO4."
+			possible_values=".true. or .false."
+        />
+		<nml_option name="config_AM_lagrPartTrack_sample_NO3" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample NO3."
+			possible_values=".true. or .false."
+        />
+		<nml_option name="config_AM_lagrPartTrack_sample_SiO3" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample SiO3."
+			possible_values=".true. or .false."
+        />
+		<nml_option name="config_AM_lagrPartTrack_sample_NH4" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample NH4."
+			possible_values=".true. or .false."
+        />
+		<nml_option name="config_AM_lagrPartTrack_sample_Fe" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample Fe."
+			possible_values=".true. or .false."
+        />
+		<nml_option name="config_AM_lagrPartTrack_sample_O2" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample O2."
+			possible_values=".true. or .false."
         />
 	</nml_record>
 
@@ -351,6 +375,24 @@
 		/>
         <var name="particleALK" type="real" dimensions="nParticles Time" units="meq m^{-3}"
 			 description="sampled alkalinity for particle"
+        />
+        <var name="particlePO4" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic phosphate for particle"
+		/>
+        <var name="particleNO3" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved inorganic nitrate for particle"
+		/>
+        <var name="particleSiO3" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic silicate for particle"
+		/>
+        <var name="particleNH4" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved inorganic ammonia for particle"
+		/>
+        <var name="particleFe" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic iron for particle"
+		/>
+        <var name="particleO2" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved oxygen for particle"
 		/>
 	</var_struct>
 <!--
