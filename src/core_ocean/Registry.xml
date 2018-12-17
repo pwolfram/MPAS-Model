@@ -3000,15 +3000,12 @@
 
 		<var name="windSpeedU" type="real" dimensions="nCells Time" units="m/s"
 			 description="Zonal (eastward) component of wind speed at cell centers from coupler. Positive easthward."
-			 packages="windStressBulkPKG"
 		/>
 		<var name="windSpeedV" type="real" dimensions="nCells Time" units="m/s"
 			 description="Meridional (northward) component of wind speed at cell centers from coupler. Positive northward."
-			 packages="windStressBulkPKG"
 		/>
 		<var name="windSpeedMagnitude" type="real" dimensions="nCells Time" units="m/s"
 			 description="Magnitude of wind speed at cell centers from coupler."
-			 packages="windStressBulkPKG"
 		/>
 		<var name="atmosPressure" type="real" dimensions="nCells Time" units="Pa"
 			 description="Pressure at the sea surface due to the atmosphere."

@@ -19,6 +19,7 @@ module ocn_time_varying_forcing
   use mpas_timekeeping
   use mpas_forcing
   use mpas_stream_manager
+  use ocn_framework_forcing
   use mpas_log, only: mpas_log_write
 
   implicit none
@@ -28,8 +29,6 @@ module ocn_time_varying_forcing
        ocn_time_varying_forcing_init, &
        ocn_time_varying_forcing_get, &
        ocn_time_varying_forcing_write_restart_times
-
-  type (MPAS_forcing_group_type), pointer :: ocnForcingGroups
 
 contains
 
@@ -141,14 +140,14 @@ contains
 
     ! create the six hourly forcing group
     call MPAS_forcing_init_group(&                
-         ocnForcingGroups, &                     ! forcingGroupHead
+         forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          domain, &                               ! domain
          config_forcing_start_time, &            ! startTimeStr
          config_forcing_cycle_start, &           ! forcingCycleStart
          config_forcing_cycle_duration, &        ! forcingCycleDuration
-         config_do_restart, &                    ! restart
-         .false.)                                ! forcingCycleStartInclusive
+         config_do_restart)!, &                  ! restart
+         !.false.)                               ! forcingCycleStartInclusive
 
     forcingInterval = "01:00:00"
     forcingReferenceTime = "0001-01-01_00:00:00"
@@ -157,7 +156,7 @@ contains
     ! windSpeedU init
     call MPAS_forcing_init_field(&               
          domain % streamManager, &               ! streamManager
-         ocnForcingGroups, &                     ! forcingGroupHead
+         forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          "windSpeedU", &                         ! forcingName
          "atmospheric_forcing", &                ! forcingStreamID
@@ -165,13 +164,13 @@ contains
          "windSpeedU", &                         ! fieldname
          "linear", &                             ! interpolationType
          forcingReferenceTime, &                 ! forcingReferenceTimeStr
-         forcingInterval, &                      ! forcingIntervalStr
-         "next")                                 ! forcingInitializationType
+         forcingInterval)!,                      ! forcingIntervalStr
+         !"next")                                ! forcingInitializationType
 
     ! windSpeedV init
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         ocnForcingGroups, &
+         forcingGroupHead, &
          "ocn_atmospheric_forcing", &
          "windSpeedV", &
          "atmospheric_forcing", &
@@ -179,13 +178,13 @@ contains
          "windSpeedV", &
          "linear", &
          forcingReferenceTime, &
-         forcingInterval, &
-         "next")
+         forcingInterval)!, &
+         !"next")
 
     ! atmosphericPressure init
     call MPAS_forcing_init_field(&
          domain % streamManager, &
-         ocnForcingGroups, &
+         forcingGroupHead, &
          "ocn_atmospheric_forcing", &
          "atmosPressure", &
          "atmospheric_forcing", &
@@ -193,11 +192,11 @@ contains
          "atmosPressure", &
          "linear", &
          forcingReferenceTime, &
-         forcingInterval, &
-         "next")
+         forcingInterval)!, &
+         !"next")
 
     call MPAS_forcing_init_field_data(&          
-         ocnForcingGroups, &                     ! forcingGroupHead
+         forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          domain % streamManager, &               ! streamManager
          config_do_restart, &                    ! restart
@@ -303,13 +302,13 @@ contains
     if (trim(config_atmospheric_forcing_type) == "WINDPRES") then
 
        call MPAS_forcing_get_forcing(&    
-            ocnForcingGroups, &               ! forcingGroupHead
+            forcingGroupHead, &               ! forcingGroupHead
             "ocn_atmospheric_forcing", &      ! forcingGroupName
             streamManager, &                  ! streamManager
             dtSim)                            ! dt
 
        call MPAS_forcing_get_forcing_time(&
-            ocnForcingGroups, &               ! forcingGroupHead
+            forcingGroupHead, &               ! forcingGroupHead
             "ocn_atmospheric_forcing", &      ! forcingGroupName
             currentForcingTime)               ! forcingTime
 
@@ -380,8 +379,8 @@ contains
 
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
     call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
-    call MPAS_pool_get_subpool(block % structs, "time_varying_forcing", timeVaryingForcingPool)
-    call MPAS_pool_get_subpool(block % structs, "diagnositcs", diagnosticsPool)
+    call MPAS_pool_get_subpool(block % structs, "timeVaryingForcing", timeVaryingForcingPool)
+    call MPAS_pool_get_subpool(block % structs, "diagnostics", diagnosticsPool)
 
     call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
 
@@ -564,7 +563,7 @@ contains
 
     if (config_use_forcing) then
 
-       call MPAS_forcing_write_restart_times(ocnForcingGroups)
+       call MPAS_forcing_write_restart_times(forcingGroupHead)
 
     endif
 
