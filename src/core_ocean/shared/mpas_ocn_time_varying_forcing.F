@@ -361,7 +361,6 @@ contains
     real(kind=RKIND) :: &
          windStressCoefficient, &
          rhoAir, &
-         rhoWater, &
          ramp, &
          currentTime
 
@@ -395,14 +394,14 @@ contains
     call MPAS_pool_get_array(forcingPool, "atmosphericPressure", atmosphericPressure)
 
     rhoAir = 1.225_RKIND
-    rhoWater = 997.0_RKIND 
 
     ramp = tanh((2.0_RKIND*daysSinceStartOfSim)/config_forcing_ramp)
 
     do iCell = 1, nCellsSolve
 
-       ! air stresses
-       windStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir/rhoWater
+       windSpeedMagnitude(iCell) = sqrt(windSpeedU(iCell)**2 + windSpeedV(iCell)**2)
+
+       windStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir  ! Garratt 1977
 
        windStressZonal(iCell) = ramp * windSpeedU(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
        windStressMeridional(iCell) = ramp * windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
