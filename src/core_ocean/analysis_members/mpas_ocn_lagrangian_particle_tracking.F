@@ -2085,9 +2085,9 @@ contains
 
          ! interpolate the vertical velocity (can be different than zMid...,
          ! which is assumed input)
-         iLevelTmp = mpas_get_vertical_id(nVertLevels, zLoc, zTop)
+         iLevelTmp = mpas_get_vertical_id(nVertLevels, -zLoc, -zTop)
          vertVelocityInterp = interp_vert_velocity_to_zlevel( &
-           iLevelTmp, zLoc, zTop, vertVelocityTop)
+           iLevelTmp, nVertLevels, -zLoc, -zTop, vertVelocityTop)
 
          ! interpolate the horizontal velocity based on z-levels
          call interp_nodal_vectors(ncellvertices, verticesoncell, &
@@ -2664,23 +2664,22 @@ contains
 
      uvCell = 0.0_RKIND
 
-     !call mpas_log_write( 'interp' )
      if(iLevel < 1) then
-       if(iLevel == 0) then
-         !print *, 'nCellVertices = ', nCellVertices, 'buoyancyInterp= ', phiInterp
-         do aVertex = 1, nCellVertices
-           theVertex = verticesOnCell(aVertex)
-           !print *, maxloc(phiVals,1), phiVals(1:nVertLevels), uVertexVelocity(1:nVertLevels,theVertex)
-           uvCell(1,aVertex) = uVertexVelocity(nVertLevels, theVertex)
-           uvCell(2,aVertex) = vVertexVelocity(nVertLevels, theVertex)
-           uvCell(3,aVertex) = wVertexVelocity(nVertLevels, theVertex)
-         end do
-       else if(iLevel == -1) then
+       ! top
+       if(iLevel == -1) then
          do aVertex = 1, nCellVertices
            theVertex = verticesOnCell(aVertex)
            uvCell(1,aVertex) = uVertexVelocity(1, theVertex)
            uvCell(2,aVertex) = vVertexVelocity(1, theVertex)
            uvCell(3,aVertex) = wVertexVelocity(1, theVertex)
+         end do
+       ! bottom
+       else if(iLevel == 0) then
+         do aVertex = 1, nCellVertices
+           theVertex = verticesOnCell(aVertex)
+           uvCell(1,aVertex) = uVertexVelocity(nVertLevels, theVertex)
+           uvCell(2,aVertex) = vVertexVelocity(nVertLevels, theVertex)
+           uvCell(3,aVertex) = wVertexVelocity(nVertLevels, theVertex)
          end do
        end if
      else
@@ -2884,13 +2883,14 @@ contains
 !
 !-----------------------------------------------------------------------
    real (kind=RKIND) function interp_vert_velocity_to_zlevel( & !{{{
-       iLevel, zSubStep, zTop, vertVelocityTop)
+       iLevel, nLevels, zSubStep, zTop, vertVelocityTop)
 
       implicit none
      !-----------------------------------------------------------------
      ! input variables
      !-----------------------------------------------------------------
      integer, intent(in) :: iLevel                                    !< vertical level / cell of zSubStep
+     integer, intent(in) :: nLevels                                   !< maximum number of vertical levels
      real (kind=RKIND), intent(in) :: zSubStep                        !< location to interpolate
      real (kind=RKIND), dimension(:), intent(in) :: zTop              !< elevation of cell top
      real (kind=RKIND), dimension(:), intent(in) :: vertVelocityTop   !< vertical velocity at top of cell
@@ -2906,10 +2906,12 @@ contains
      real (kind=RKIND) :: alpha
 
      if(iLevel < 1) then
-       if(iLevel == 0) then
-         interp_vert_velocity_to_zlevel = vertVelocityTop(maxloc(zTop,1))
-       else if(iLevel == -1) then
-         interp_vert_velocity_to_zlevel = vertVelocityTop(minloc(zTop,1))
+       ! top
+       if(iLevel == -1) then
+         interp_vert_velocity_to_zlevel = vertVelocityTop(zTop(1))
+       ! bottom
+       else if(iLevel == 0) then
+         interp_vert_velocity_to_zlevel = vertVelocityTop(zTop(nLevels))
        end if
      else
        ! interpolate the velocity [assumes zTop(iLevel+1) <= zSubStep <= zTop(iLevel)]
