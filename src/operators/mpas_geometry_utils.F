@@ -1185,13 +1185,14 @@ module mpas_geometry_utils
 !
 !  function mpas_get_vertical_id
 !
-!> \brief Determines vertical level index for a location
+!> \brief   Determines vertical level index for a location
 !> \author  Phillip Wolfram
-!> \date    05/13/2014
+!> \date    12/19/2018
 !> \details
 !>  This function determines the nearest vertical level to a particular
-!>  location within a column.  If the location is below the bottom
-!>  vertical level this returns -1, if it is above the top level, 0.
+!>  location within a column, assuming zLoc and zMid are positive and
+!>  increasing quantities.  If the location is below the bottom
+!>  vertical level this returns 0, if it is above the top level, -1.
 !>  Levels are referenced to vertical cell centers.
 !-----------------------------------------------------------------------
    function mpas_get_vertical_id(nLevels, zLoc, zMid) !{{{
@@ -1215,11 +1216,13 @@ module mpas_geometry_utils
          end if
       end do
 
-      if(zLoc < minval(zMid(1:nLevels))) then
+      ! top
+      if(zLoc < zMid(1)) then
          ! case where location is smallest value
          mpas_get_vertical_id = -1
          return
-      else if (zLoc > maxval(zMid(1:nLevels))) then
+      ! bottom
+      else if (zLoc > zMid(nLevels)) then
          ! case where location is largest value
          mpas_get_vertical_id = 0
          return
