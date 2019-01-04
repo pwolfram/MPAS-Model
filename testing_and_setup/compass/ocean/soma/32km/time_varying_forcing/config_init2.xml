@@ -2,6 +2,7 @@
 <config case="init_step2" mode="init">
 	<add_link source="../init_step1/culled_mesh.nc" dest="mesh.nc"/>
 	<add_link source="../init_step1/culled_graph.info" dest="graph.info"/>
+        <add_link source_path="script_test_dir" source="compute_forcing.py" dest="compute_forcing.py"/>
 
 	<add_executable source="model" dest="ocean_model"/>
 	<add_executable source="metis" dest="metis"/>
@@ -62,6 +63,9 @@
 
 	<run_script name="run.py">
 		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+                <step executable="python">
+                       <argument flag="">compute_forcing.py</argument>
+                </step>
 	</run_script>
 
 </config>

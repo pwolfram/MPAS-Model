@@ -1,15 +1,21 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python 
 import numpy as np
 import scipy as sp
 import xarray as xr
 import netCDF4
+import datetime
 
 forcing = xr.open_dataset('forcing.nc')
 
 # build xtime
-xtime = ['0001-01-01_{:02d}:00:00'.format(atime) for atime in np.arange(24)]
-xtime = ['{:64s}'.format(astr) for astr in xtime]
+time = np.arange(26)
+ref_date = datetime.datetime.strptime('1901-01-01_00:00:00','%Y-%m-%d_%H:%M:%S')
+xtime = []
+for t in time:
+  date = ref_date + datetime.timedelta(hours=np.float64(t))
+  xdate = date.strftime('%Y-%m-%d_%H:%M:%S')+45*' '         
+  xdate = '0001'+xdate[4:]                                  # Change year because strftime has issues with years <1900
+  xtime.append(xdate)
 
 scaling = np.linspace(0,1.0,len(xtime)).T
 
