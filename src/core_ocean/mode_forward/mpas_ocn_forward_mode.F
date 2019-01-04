@@ -485,6 +485,7 @@ module ocn_forward_mode
       logical, pointer :: config_use_ecosysTracers
       logical, pointer :: config_use_activeTracers_surface_restoring
       logical, pointer :: config_use_surface_salinity_monthly_restoring
+      logical, pointer :: config_use_atmospheric_forcing
 
       ierr = 0
 
@@ -496,6 +497,8 @@ module ocn_forward_mode
                                                    config_use_activeTracers_surface_restoring)
       call mpas_pool_get_config(domain % configs, 'config_use_surface_salinity_monthly_restoring',  &
                                                    config_use_surface_salinity_monthly_restoring)
+      call MPAS_pool_get_config(domain % configs, 'config_use_time_varying_atmospheric_forcing', &
+                                                   config_use_atmospheric_forcing)
 
       ! Eventually, dt should be domain specific
       timeStep = mpas_get_clock_timestep(domain % clock, ierr=ierr)
@@ -632,14 +635,14 @@ module ocn_forward_mode
                close(22)
             end if
 
-            if(trim(config_sw_absorption_type)=='ohlmann00') call ocn_shortwave_forcing_write_restart(domain)
+            ! write forcing restart if any type(s) time varying forcing is used
+            if (trim(config_sw_absorption_type)=='ohlmann00' .or. &
+                config_use_ecosysTracers .or. &
+                (config_use_activeTracers_surface_restoring .and. config_use_surface_salinity_monthly_restoring) .or. &
+                config_use_atmospheric_forcing) then
 
-            if (config_use_ecosysTracers) call ocn_ecosys_forcing_write_restart(domain)
-
-            if (config_use_activeTracers_surface_restoring .and. config_use_surface_salinity_monthly_restoring)  &
-               call ocn_salinity_restoring_forcing_write_restart(domain)
-
-            call ocn_time_varying_forcing_write_restart_times(domain)
+                call ocn_time_varying_forcing_write_restart_times(domain)
+            end if
          end if
 
          call mpas_timer_start('io_write')

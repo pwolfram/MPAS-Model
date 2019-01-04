@@ -570,16 +570,7 @@ contains
 
     type(domain_type) :: domain
 
-    logical, pointer :: &
-         config_use_atmospheric_forcing
-
-    call MPAS_pool_get_config(domain % configs, "config_use_time_varying_atmospheric_forcing", config_use_atmospheric_forcing)
-
-    if (config_use_atmospheric_forcing) then
-
-       call MPAS_forcing_write_restart_times(forcingGroupHead)
-
-    endif
+    call MPAS_forcing_write_restart_times(forcingGroupHead)
 
   end subroutine ocn_time_varying_forcing_write_restart_times
 
