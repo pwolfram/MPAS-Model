@@ -515,7 +515,7 @@
 					possible_values="any integer"
 		/>
 		<nml_option name="config_cvmix_use_BLD_smoothing" type="logical" default_value=".true." units="NA"
-					description="If true KPP bld is smoothed with a laplacian filter" 
+					description="If true KPP bld is smoothed with a laplacian filter"
 					possible_values=".true. or .false."
 		/>
 		<nml_option name="config_cvmix_shear_mixing_scheme" type="character" default_value="PP" units="NA"
@@ -1233,7 +1233,7 @@
 		/>
 	</nml_record>
 	<packages>
-                <package name="timeVaryingAtmosphericForcingPKG" description="This package includes variavles required for time varying atmospheric forcing"/> 
+                <package name="timeVaryingAtmosphericForcingPKG" description="This package includes variavles required for time varying atmospheric forcing"/>
 		<package name="variableShortwave" description="This package includes variables required to compute spatially variable shortwave extinction coefficients"/>
 
 		<package name="splitTimeIntegrator" description="This package includes variables required for either the split or unsplit explicit time integrators."/>
@@ -2756,7 +2756,7 @@
 		<var name="nForcingGroupCounter"		type="integer"	dimensions="Time"/>
 		<var name="forcingGroupNames"			type="text"	dimensions="nForcingGroupsMax Time"/>
 		<var name="forcingGroupRestartTimes"		type="text"	dimensions="nForcingGroupsMax Time"/>
-	
+
 		<!-- *********************************************************************
 
 				The fields listed below are constituent fields for coupling.

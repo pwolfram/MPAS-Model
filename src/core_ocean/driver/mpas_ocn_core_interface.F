@@ -298,7 +298,7 @@ module ocn_core_interface
       if (config_use_time_varying_atmospheric_forcing) then
          timeVaryingAtmosphericForcingPKGActive = .true.
       endif
-         
+
       !
       ! call into analysis member driver to set analysis member packages
       !

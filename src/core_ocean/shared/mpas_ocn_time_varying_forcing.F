@@ -2,12 +2,12 @@
 !
 !  ocn_time_varying_forcing
 !
-!> \brief Module to handle time-varying forcing for the ocean core 
+!> \brief Module to handle time-varying forcing for the ocean core
 !> \author Steven Brus, LANL
 !> \date 2013-2014
 !> \details
-!>  Manages the wind and pressure forcing for the ocean. 
-!>  Based very closely on the seaice forcing module and 
+!>  Manages the wind and pressure forcing for the ocean.
+!>  Based very closely on the seaice forcing module and
 !>  framework written by Adrian Turner.
 !
 !-----------------------------------------------------------------------
@@ -66,14 +66,14 @@ contains
     !if (config_use_time_varying_****_forcing) then
     !  call init_****_forcing(domain)
     !endif
-      
+
   end subroutine ocn_time_varying_forcing_init
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
 !  init_atmospheric_forcing
 !
-!> \brief 
+!> \brief
 !> \author Steven Brus, LANL
 !> \date
 !> \details
@@ -129,13 +129,28 @@ contains
          forcingReferenceTime
 
     ! get atmospheric forcing configuration options
-    call MPAS_pool_get_config(domain % configs, "config_time_varying_atmospheric_forcing_start_time", config_forcing_start_time)
-    call MPAS_pool_get_config(domain % configs, "config_time_varying_atmospheric_forcing_cycle_start", config_forcing_cycle_start)
-    call MPAS_pool_get_config(domain % configs, "config_time_varying_atmospheric_forcing_cycle_duration", config_forcing_cycle_duration)
-    call MPAS_pool_get_config(domain % configs, "config_do_restart", config_do_restart)
+    call MPAS_pool_get_config(&
+         domain % configs, &
+         "config_time_varying_atmospheric_forcing_start_time", &
+         config_forcing_start_time)
+
+    call MPAS_pool_get_config(&
+         domain % configs, &
+         "config_time_varying_atmospheric_forcing_cycle_start", &
+         config_forcing_cycle_start)
+
+    call MPAS_pool_get_config(&
+         domain % configs, &
+         "config_time_varying_atmospheric_forcing_cycle_duration", &
+         config_forcing_cycle_duration)
+
+    call MPAS_pool_get_config(&
+         domain % configs, &
+         "config_do_restart", &
+         config_do_restart)
 
     ! create the six hourly forcing group
-    call MPAS_forcing_init_group(&                
+    call MPAS_forcing_init_group(&
          forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          domain, &                               ! domain
@@ -150,7 +165,7 @@ contains
 
 
     ! windSpeedU init
-    call MPAS_forcing_init_field(&               
+    call MPAS_forcing_init_field(&
          domain % streamManager, &               ! streamManager
          forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
@@ -191,7 +206,7 @@ contains
          forcingInterval)!, &
          !"next")
 
-    call MPAS_forcing_init_field_data(&          
+    call MPAS_forcing_init_field_data(&
          forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
          domain % streamManager, &               ! streamManager
@@ -299,7 +314,7 @@ contains
     call mpas_get_timeInterval(timeStepESMF, dt=dtSim)
 
     ! use the forcing layer to get data
-    call MPAS_forcing_get_forcing(&    
+    call MPAS_forcing_get_forcing(&
          forcingGroupHead, &               ! forcingGroupHead
          "ocn_atmospheric_forcing", &      ! forcingGroupName
          streamManager, &                  ! streamManager
@@ -389,7 +404,7 @@ contains
     call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedMagnitude", windSpeedMagnitude)
     call MPAS_pool_get_array(forcingPool, "windStressZonal", windStressZonal)
     call MPAS_pool_get_array(forcingPool, "windStressMeridional", windStressMeridional)
-  
+
     call MPAS_pool_get_array(timeVaryingForcingPool, "atmosPressure", atmosPressure)
     call MPAS_pool_get_array(forcingPool, "atmosphericPressure", atmosphericPressure)
 
@@ -424,7 +439,7 @@ contains
 !
 !> \brief
 !> \author Steven Brus, LANL
-!> \date 
+!> \date
 !> \details
 !>
 !
@@ -453,7 +468,7 @@ contains
 !
 !> \brief
 !> \author Steven Brus, LANL
-!> \date 
+!> \date
 !> \details
 !>
 !
