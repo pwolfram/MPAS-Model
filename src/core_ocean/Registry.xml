@@ -726,12 +726,20 @@
                         description="Forcing time to use at the simulation start time"
                         possible_values="'YYYY-MM-DD_HH:MM:SS"
                 />
+                <nml_option name="config_time_varying_atmospheric_forcing_reference_time" type="character" default_value="0001-01-01_00:00:00" units="unitless"
+                        description="Reference time for the forcing"
+                        possible_values="'YYYY-MM-DD_HH:MM:SS"
+                />
                 <nml_option name="config_time_varying_atmospheric_forcing_cycle_start" type="character" default_value="0001-01-01_00:00:00" units="unitless"
                         description="Start time for the forcing cycle."
                         possible_values="'YYYY-MM-DD_HH:MM:SS"
                 />
                 <nml_option name="config_time_varying_atmospheric_forcing_cycle_duration" type="character" default_value="2-00-00_00:00:00" units="unitless"
                         description="Duration of the forcing cycle."
+                        possible_values="'YYYY-MM-DD_HH:MM:SS"
+                />
+                <nml_option name="config_time_varying_atmospheric_forcing_interval" type="character" default_value="01:00:00" units="unitless"
+                        description="Time between forcing inputs"
                         possible_values="'YYYY-MM-DD_HH:MM:SS"
                 />
                 <nml_option name="config_time_varying_atmospheric_forcing_ramp" type="real" default_value="10.0" units="days"

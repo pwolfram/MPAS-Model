@@ -119,14 +119,12 @@ contains
     character(len=strKIND), pointer :: &
          config_forcing_start_time, &
          config_forcing_cycle_start, &
-         config_forcing_cycle_duration
+         config_forcing_cycle_duration, &
+         forcingInterval, &
+         forcingReferenceTime
 
     logical, pointer :: &
          config_do_restart
-
-    character(len=strKIND) :: &
-         forcingInterval, &
-         forcingReferenceTime
 
     ! get atmospheric forcing configuration options
     call MPAS_pool_get_config(&
@@ -146,10 +144,20 @@ contains
 
     call MPAS_pool_get_config(&
          domain % configs, &
+         "config_time_varying_atmospheric_forcing_interval", &
+         forcingInterval)
+
+    call MPAS_pool_get_config(&
+         domain % configs, &
+         "config_time_varying_atmospheric_forcing_reference_time", &
+         forcingReferenceTime)
+
+    call MPAS_pool_get_config(&
+         domain % configs, &
          "config_do_restart", &
          config_do_restart)
 
-    ! create the six hourly forcing group
+    ! create the atmospheric forcing group
     call MPAS_forcing_init_group(&
          forcingGroupHead, &                     ! forcingGroupHead
          "ocn_atmospheric_forcing", &            ! forcingGroupName
@@ -159,10 +167,6 @@ contains
          config_forcing_cycle_duration, &        ! forcingCycleDuration
          config_do_restart)!, &                  ! restart
          !.false.)                               ! forcingCycleStartInclusive
-
-    forcingInterval = "01:00:00"
-    forcingReferenceTime = "0001-01-01_00:00:00"
-
 
     ! windSpeedU init
     call MPAS_forcing_init_field(&
