@@ -4,7 +4,7 @@
 !
 !> \brief Module to handle time-varying forcing for the ocean core
 !> \author Steven Brus, LANL
-!> \date 2013-2014
+!> \date 1/8/2019 
 !> \details
 !>  Manages the wind and pressure forcing for the ocean.
 !>  Based very closely on the seaice forcing module and
@@ -42,7 +42,7 @@ contains
 !
 !> \brief Driver for ocean core forcing initialization
 !> \author Steven Brus, LANL
-!> \date
+!> \date 1/8/2019
 !> \details
 !>
 !
@@ -75,7 +75,7 @@ contains
 !
 !> \brief
 !> \author Steven Brus, LANL
-!> \date
+!> \date 1/8/2019
 !> \details
 !>
 !
@@ -105,7 +105,7 @@ contains
 !
 !> \brief Initialize the forcing objects for wind and pressure
 !> \author Steven Brus, LANL
-!> \date 2013-2014
+!> \date 1/8/2019
 !> \details
 !>  This routine calls the MPAS_forcing module subroutines that initializes
 !>  the forcings type
@@ -225,7 +225,7 @@ contains
 !
 !> \brief Retrieve forcing data during time stepping
 !> \author Steven Brus, LANL
-!> \date 2013-2014
+!> \date 1/8/2019
 !> \details
 !>  This routine calls the MPAS_forcing routine that will perform the
 !>  forcing data aquisition and interpolation during timestepping
@@ -274,7 +274,7 @@ contains
 !
 !> \brief
 !> \author Steven Brus, LANL
-!> \date
+!> \date 1/8/2019
 !> \details
 !>
 !
@@ -344,10 +344,10 @@ contains
 !
 !  post_atmospheric_forcing
 !
-!> \brief
+!> \brief Calculate wind stress from wind speed and apply ramp
 !> \author Steven Brus, LANL
-!> \date
-!> \details
+!> \date 1/8/2019
+!> \details Uses drag law from J.R. Garratt MWR 1977
 !>
 !
 !-----------------------------------------------------------------------
@@ -437,7 +437,7 @@ contains
 !
 !> \brief
 !> \author Steven Brus, LANL
-!> \date
+!> \date 1/8/2019
 !> \details
 !>
 !
