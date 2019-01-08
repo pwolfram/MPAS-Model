@@ -48,7 +48,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_time_varying_forcing_init(domain)
+  subroutine ocn_time_varying_forcing_init(domain)!{{{
 
     type (domain_type) :: domain
 
@@ -67,7 +67,7 @@ contains
     !  call init_****_forcing(domain)
     !endif
 
-  end subroutine ocn_time_varying_forcing_init
+  end subroutine ocn_time_varying_forcing_init!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -81,7 +81,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine init_atmospheric_forcing(domain)
+  subroutine init_atmospheric_forcing(domain)!{{{
 
     type (domain_type) :: domain
 
@@ -97,7 +97,7 @@ contains
          call mpas_log_write("Atmospheric forcing type unknown: "//trim(config_atmospheric_forcing_type), MPAS_LOG_CRIT)
     end select
 
-  end subroutine init_atmospheric_forcing
+  end subroutine init_atmospheric_forcing!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -112,7 +112,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine init_atmospheric_forcing_WINDPRES(domain)
+  subroutine init_atmospheric_forcing_WINDPRES(domain)!{{{
 
     type(domain_type) :: domain
 
@@ -217,7 +217,7 @@ contains
          config_do_restart, &                    ! restart
          .false.)                                ! interpolateAtInit
 
-  end subroutine init_atmospheric_forcing_WINDPRES
+  end subroutine init_atmospheric_forcing_WINDPRES!}}}
 
 !-----------------------------------------------------------------------
 ! runtime
@@ -236,10 +236,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_time_varying_forcing_get(&
-       streamManager, &
-       domain, &
-       simulationClock)
+  subroutine ocn_time_varying_forcing_get(streamManager, domain, simulationClock)!{{{
 
     type (MPAS_streamManager_type), intent(inout) :: streamManager
 
@@ -270,7 +267,7 @@ contains
     ! endif
 
 
-  end subroutine ocn_time_varying_forcing_get
+  end subroutine ocn_time_varying_forcing_get!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -284,10 +281,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine atmospheric_forcing(&
-       streamManager, &
-       domain, &
-       simulationClock)
+  subroutine atmospheric_forcing(streamManager, domain, simulationClock)!{{{
 
     type (MPAS_streamManager_type), intent(inout) :: streamManager
 
@@ -342,7 +336,7 @@ contains
        block => block % next
     end do
 
-  end subroutine atmospheric_forcing
+  end subroutine atmospheric_forcing!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -356,7 +350,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine post_atmospheric_forcing(block)
+  subroutine post_atmospheric_forcing(block)!{{{
 
     type (block_type), pointer :: block
 
@@ -429,7 +423,7 @@ contains
 
     atmosphericPressure = atmosPressure
 
-  end subroutine post_atmospheric_forcing
+  end subroutine post_atmospheric_forcing!}}}
 
 
 !-----------------------------------------------------------------------
@@ -447,14 +441,15 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine ocn_time_varying_forcing_write_restart_times(domain)
+  subroutine ocn_time_varying_forcing_write_restart_times(domain)!{{{
 
     type(domain_type) :: domain
 
     call MPAS_forcing_write_restart_times(forcingGroupHead)
 
-  end subroutine ocn_time_varying_forcing_write_restart_times
+  end subroutine ocn_time_varying_forcing_write_restart_times!}}}
 
 !-----------------------------------------------------------------------
 
 end module ocn_time_varying_forcing
+! vim: foldmethod=marker
