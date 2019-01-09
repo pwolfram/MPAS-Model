@@ -88,15 +88,10 @@ contains
     integer :: iCell, k, idx, iEdge, iVertex
     real (kind=RKIND) :: maxBottomDepth, dlon, dlat, dw
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
-    real (kind=RKIND), parameter :: eps=1.0e-12
-    logical :: wetting
-    real (kind=RKIND) :: realbottom
 
     ! Define config variable pointers
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
     integer, pointer :: config_hurricane_vert_levels
-    logical, pointer :: config_use_wetting_drying
-    real (kind=RKIND), pointer :: config_drying_min_cell_height
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
@@ -106,9 +101,9 @@ contains
     logical, pointer :: on_a_sphere
     integer, dimension(:), pointer :: maxLevelCell
     real (kind=RKIND), dimension(:), pointer :: ssh
-    real (kind=RKIND), dimension(:), pointer :: xCell, yCell,refBottomDepth, refZMid, &
+    real (kind=RKIND), dimension(:), pointer :: refBottomDepth, refZMid, &
          vertCoordMovementWeights, bottomDepth, &
-         fCell, fEdge, fVertex, dcEdge, &
+         fCell, fEdge, fVertex, &
          latCell, latEdge, latVertex
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -123,10 +118,6 @@ contains
 
     call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_vert_levels', config_hurricane_vert_levels)
-
-    ! wetting and drying parameters
-    call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
-    call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
@@ -200,25 +191,15 @@ contains
           ssh(iCell) = 0.0_RKIND 
 
           ! initialize with constant number of layers globally
-          maxLevelCell(iCell) = 3
+          maxLevelCell(iCell) = nVertLevels 
 
-          bottomDepth(iCell) = min(maxBottomDepth, max(-10.0_RKIND, bottomDepth(iCell)))
+          ! enforce minimum bottom depth
+          bottomDepth(iCell) = max(3.0_RKIND, bottomDepth(iCell))
 
-          if (.not. config_use_wetting_drying) then
-            bottomDepth(iCell) = max(3.0_RKIND, bottomDepth(iCell))
-          end if
-
-          ! make sure depth is thick enough via ssh = TOTAL_DEPTH - bottomDepth
-          ssh(iCell) = max(ssh(iCell) + bottomDepth(iCell), &
-            maxLevelCell(iCell)*(config_drying_min_cell_height + eps)) &
-            - bottomDepth(iCell)
-
-          ! add in ssh perterbation
+          ! set layer thicknesses
           do k=1, maxLevelCell(iCell)
-            !layerThickness(k,iCell) = 1.0_RKIND
-            layerThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
-              1.0_RKIND/float(maxLevelCell(iCell))*(ssh(iCell) + bottomDepth(iCell)))
-            restingThickness(:, iCell) = layerThickness(:, iCell)
+            layerThickness(k,iCell) = (ssh(iCell) + bottomDepth(iCell))/float(maxLevelCell(iCell))
+            restingThickness(k, iCell) = layerThickness(k, iCell)
           end do
 
           ! Set temperature
