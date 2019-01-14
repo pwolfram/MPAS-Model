@@ -700,6 +700,10 @@
 					description="Controls if zonal and meridional components of windstress are used to build surface wind stress."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_bulk_wind_stress_amp" type="real" default_value="1.0" units="unitless"
+					description="Artificial amplification of input wind stress for parameter studies."
+					possible_values="Any real number."
+		/>
 		<nml_option name="config_use_bulk_thickness_flux" type="logical" default_value=".false." units="unitless"
 					description="Controls if a bulk thickness flux will be computed for surface forcing."
 					possible_values=".true. or .false."
