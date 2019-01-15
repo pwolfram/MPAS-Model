@@ -1,17 +1,18 @@
 <?xml version="1.0"?>
 <config case="init">
-	<add_link source="../../init_wet/culled_mesh/culled_mesh_final.nc " dest="mesh.nc"/>
-	<add_link source="../../init_wet/culled_mesh/culled_graph.info" dest="graph.info"/>
+	<add_link source="../../build_mesh/culled_mesh/culled_mesh.nc" dest="mesh.nc"/>
+	<add_link source="../../build_mesh/culled_mesh/culled_graph.info" dest="graph.info"/>
 
 	<add_executable source="model" dest="ocean_model"/>
+	<add_executable source="metis" dest="metis"/>
 
 	<namelist name="namelist.ocean" mode="init">
-		<option name="config_init_configuration">'hurricaner'</option>
+		<option name="config_init_configuration">'hurricane'</option>
 		<option name="config_vert_levels">-1</option>
 		<option name="config_ocean_run_mode">'init'</option>
 		<option name="config_write_cull_cell_mask">.false.</option>
 		<option name="config_realistic_coriolis_parameter">.true.</option>
-		<option name="config_vertical_grid">uniform</option>
+		<option name="config_vertical_grid">'uniform'</option>
 		<option name="config_hurricane_vert_levels">3</option>
 	</namelist>
 
@@ -41,6 +42,11 @@
 	</streams>
 
 	<run_script name="run.py">
+<!--
+		<step executable="./metis">
+		        <argument flag="graph.info">6</argument>
+		</step>
+-->
 		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
 	</run_script>
 
