@@ -1309,6 +1309,7 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="fCell"/>
+			<var name="bottomDepth"/>
 		</stream>
 
 		<stream name="output_init"
