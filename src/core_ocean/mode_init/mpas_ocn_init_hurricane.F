@@ -24,6 +24,7 @@ module ocn_init_hurricane
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_constants
+   use mpas_dmpar
 
    use ocn_constants
    use ocn_init_vertical_grids
@@ -86,7 +87,8 @@ contains
 
     ! local variables
     integer :: iCell, k, idx, iEdge, iVertex
-    real (kind=RKIND) :: maxBottomDepth, dlon, dlat, dw
+    real (kind=RKIND) :: dlon, dlat, dw
+    real (kind=RKIND) :: maxBottomDepth, globalMaxBottomDepth
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
 
     ! Define config variable pointers
@@ -99,7 +101,7 @@ contains
 
     ! Define variable pointers
     logical, pointer :: on_a_sphere
-    integer, dimension(:), pointer :: maxLevelCell
+    integer, dimension(:), pointer :: maxLevelCell 
     real (kind=RKIND), dimension(:), pointer :: ssh
     real (kind=RKIND), dimension(:), pointer :: refBottomDepth, refZMid, &
          vertCoordMovementWeights, bottomDepth, &
@@ -121,8 +123,6 @@ contains
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
-    call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
-    call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
     call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
     call mpas_pool_get_dimension(meshPool, 'nVertLevelsP1', nVertLevelsP1)
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
@@ -131,15 +131,27 @@ contains
     if ( .not. on_a_sphere ) call mpas_log_write('The hurricane configuration can only be applied ' &
       // 'to a spherical mesh. Exiting...', MPAS_LOG_CRIT)
 
-    ! assign config variables
-    ! ! Set refBottomDepth and refZMid
-    maxBottomDepth = 60.0_RKIND
     nVertLevels  = config_hurricane_vert_levels
     nVertLevelsP1 = nVertLevels + 1
 
 
     allocate(interfaceLocations(nVertLevelsP1))
     call ocn_generate_vertical_grid( config_vertical_grid, interfaceLocations, ocnConfigs )
+
+    ! Find max bottom depth
+    maxBottomDepth = -9e10
+    block_ptr => domain % blocklist
+    do while(associated(block_ptr))
+      call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+      call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+
+      if (MAXVAL(bottomDepth) > maxBottomDepth) then
+        maxBottomDepth = MAXVAL(bottomDepth)
+      end if
+
+      block_ptr => block_ptr % next
+    end do
+    call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth , globalMaxBottomDepth) 
 
     !--------------------------------------------------------------------
     ! Use this section to set initial values
@@ -174,12 +186,13 @@ contains
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
        call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
 
+       call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
 
        do k = 1, nVertLevels
-          refBottomDepth(k) = maxBottomDepth* interfaceLocations(k+1)
-          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * maxBottomDepth
+          refBottomDepth(k) = globalMaxBottomDepth * interfaceLocations(k+1)
+          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * globalMaxBottomDepth
        end do
 
        ! Set vertCoordMovementWeights
