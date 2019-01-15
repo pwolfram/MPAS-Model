@@ -412,12 +412,13 @@ contains
 
     do iCell = 1, nCellsSolve
 
+       windSpeedU(iCell) = ramp*windSpeedU(iCell)
+       windSpeedV(iCell) = ramp*windSpeedV(iCell)
        windSpeedMagnitude(iCell) = sqrt(windSpeedU(iCell)**2 + windSpeedV(iCell)**2)
-
        windStressCoefficient = (0.75_RKIND + 0.067_RKIND * windSpeedMagnitude(iCell)) * 0.001_RKIND * rhoAir  ! Garratt 1977
 
-       windStressZonal(iCell) = ramp * windSpeedU(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
-       windStressMeridional(iCell) = ramp * windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
+       windStressZonal(iCell) = windSpeedU(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
+       windStressMeridional(iCell) = windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
 
     enddo
 
