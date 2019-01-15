@@ -114,19 +114,31 @@ def downsample_points(x, y, z, tri, nsplit): #{{{
 
     Phillip Wolfram
     LANL
-    Origin: 03/09/2015, Updated: 08/03/2018
+    Origin: 03/09/2015, Updated: 01/14/2019
     """
-    # build A
+    # reference on cleanest way to do this calculation:
+    # https://www.mathworks.com/matlabcentral/answers/
+    # 369143-how-to-do-delaunay-triangulation-and-return-an-adjacency-matrix
+
+    # allocate the memory
     Np = x.shape[0]
     A = sparse.lil_matrix((Np, Np))
-    for anum in np.arange(Np):
-        adj = np.where(np.sum(anum == tri, axis=1))
-        for atri in np.sort(adj):
-            A[anum, tri[atri,:]] += np.ones_like(atri)[:,np.newaxis]
-        A[anum, anum] *= -1
-    # A = -A
+
+    # cleanup impartial cells (don't include the triangles on boundary)
+    tri = tri[np.logical_not(np.any(tri==-1, axis=1)), :]
+
+    # handle one direction for triangles
+    A[tri[:,0], tri[:,1]] = 1
+    A[tri[:,1], tri[:,2]] = 1
+    A[tri[:,2], tri[:,0]] = 1
+
+    # handle other direction (bi-directional graph)
+    A[tri[:,1], tri[:,0]] = 1
+    A[tri[:,2], tri[:,1]] = 1
+    A[tri[:,0], tri[:,2]] = 1
 
     A = A.tocsr()
+
     Cpts = np.arange(Np)
     # Grab root-nodes (i.e., Coarse / Fine splitting)
     for ii in np.arange(nsplit):
