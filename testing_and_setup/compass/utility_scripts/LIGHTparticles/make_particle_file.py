@@ -201,6 +201,21 @@ class Particles(): #{{{
         self.zlevelreset = ensure_shape(x, zlevelreset)[ids]
 
         return #}}}
+
+    def compute_lat_lon(self): #{{{
+        """
+        Ripped out whole-sale from latlon_coordinate_transforms.py
+        PJW 01/15/2019
+        """
+
+        x = self.x
+        y = self.y
+        z = self.z
+
+        self.latParticle = np.arcsin(z / np.sqrt(x ** 2 + y ** 2 + z ** 2))
+        self.lonParticle = np.arctan2(y, x)
+
+        return #}}}
 #}}}
 
 
@@ -249,6 +264,13 @@ class ParticleList(): #{{{
 
         return self.nparticles #}}}
 
+    # probably a cleaner way to have this "fall through" to the particle instances themselves,
+    # but didn't have time to sort this all out so this isn't general for now
+    def compute_lat_lon(self): #{{{
+        for alist in self.particlelist:
+            alist.compute_lat_lon()
+        return #}}}
+
 
     def write(self, f_name, f_decomp):  #{{{
 
@@ -266,6 +288,8 @@ class ParticleList(): #{{{
         f_out.createVariable('xParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('yParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('zParticle', 'f8', ('Time','nParticles'))
+        f_out.createVariable('lonParticle', 'f8', ('Time','nParticles'))
+        f_out.createVariable('latParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('zLevelParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('dtParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('buoyancyParticle', 'f8', ('Time','nParticles'))
@@ -286,6 +310,10 @@ class ParticleList(): #{{{
         f_out.variables['xParticle'][0,:] = self.x
         f_out.variables['yParticle'][0,:] = self.y
         f_out.variables['zParticle'][0,:] = self.z
+
+        self.compute_lat_lon()
+        f_out.variables['lonParticle'][0,:] = self.lonParticle
+        f_out.variables['latParticle'][0,:] = self.latParticle
 
         f_out.variables['verticalTreatment'][0,:] = self.verticaltreatment
 
