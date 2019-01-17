@@ -400,7 +400,7 @@ def build_passive_floats(cpts, xCell, yCell, zCell, f_init, nvertlevels, afilter
         wgts = dense_center_seeding(nvertlevels)
     else:
         raise ValueError("Must designate `vertseedtype` as one of the following: ['linear', 'log', 'denseCenter']")
-    zlevel = -np.kron(wgts, f_init.variables['bottomDepth'][:])
+    zlevel = -np.kron(wgts, f_init.variables['bottomDepth'][cpts])
     cellindices = np.tile(cpts, (nvertlevels))
     f_init.close()
 
