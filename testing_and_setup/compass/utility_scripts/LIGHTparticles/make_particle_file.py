@@ -96,7 +96,7 @@ def remap_particles(fin, fpart, fdecomp): #{{{
     # load the decomposition (apply to latest time step)
     decomp = np.genfromtxt(fdecomp)
     currentBlock[-1,:] = decomp[cellIndices]
-    currentCell[-1,:] = cellIndices + 1
+    currentCell[-1,:] = -1
 
     # close the files
     f_in.close()
@@ -151,7 +151,7 @@ def downsample_points(x, y, z, tri, nsplit): #{{{
             R = P.T.tocsr()
             A = R * A * P
 
-    return x[Cpts], y[Cpts], z[Cpts] #}}}
+    return Cpts, x[Cpts], y[Cpts], z[Cpts] #}}}
 
 class Particles(): #{{{
 
@@ -331,13 +331,13 @@ def cell_centers(f_init, downsample): #{{{
     xCell, yCell, zCell = get_cell_coords(f_init)
     if downsample:
         tri = f_init.variables['cellsOnVertex'][:,:] - 1
-        xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri, downsample)
+        cpts, xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri, downsample)
     f_init.close()
 
-    return xCell, yCell, zCell  #}}}
+    return cpts, xCell, yCell, zCell  #}}}
 
 
-def build_isopycnal_particles(xCell, yCell, zCell, buoysurf, afilter): #{{{
+def build_isopycnal_particles(cpts, xCell, yCell, zCell, buoysurf, afilter): #{{{
 
     nparticles = len(xCell)
     nbuoysurf = buoysurf.shape[0]
@@ -347,12 +347,12 @@ def build_isopycnal_particles(xCell, yCell, zCell, buoysurf, afilter): #{{{
     z = expand_nlevels(zCell, nbuoysurf)
 
     buoypart = (np.tile(buoysurf,(nparticles,1))).reshape(nparticles*nbuoysurf,order='F').copy()
-    cellindices = np.tile(np.arange(nparticles), (nbuoysurf))
+    cellindices = np.tile(cpts, (nbuoysurf))
 
     return Particles(x, y, z, cellindices, 'buoyancySurface', buoypart=buoypart, buoysurf=buoysurf, spatialfilter=afilter) #}}}
 
 
-def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter, vertseedtype): #{{{
+def build_passive_floats(cpts, xCell, yCell, zCell, f_init, nvertlevels, afilter, vertseedtype): #{{{
 
     x = expand_nlevels(xCell, nvertlevels)
     y = expand_nlevels(yCell, nvertlevels)
@@ -367,7 +367,7 @@ def build_passive_floats(xCell, yCell, zCell, f_init, nvertlevels, afilter, vert
     else:
         raise ValueError("Must designate `vertseedtype` as one of the following: ['linear', 'log', 'denseCenter']")
     zlevel = -np.kron(wgts, f_init.variables['bottomDepth'][:])
-    cellindices = np.tile(np.arange(len(xCell)), (nvertlevels))
+    cellindices = np.tile(cpts, (nvertlevels))
     f_init.close()
 
     return Particles(x, y, z, cellindices, 'passiveFloat', zlevel=zlevel, spatialfilter=afilter) #}}}
@@ -388,30 +388,30 @@ def dense_center_seeding(nVert): #{{{
     c_wgts = np.concatenate([upper[1:], center[1:-1], lower[0:-1]])
     return c_wgts
 
-def build_surface_floats(xCell, yCell, zCell, afilter): #{{{
+def build_surface_floats(cpts, xCell, yCell, zCell, afilter): #{{{
 
     x = expand_nlevels(xCell, 1)
     y = expand_nlevels(yCell, 1)
     z = expand_nlevels(zCell, 1)
-    cellindices = np.arange(len(xCell))
+    cellindices = cpts
 
     return Particles(x, y, z, cellindices, 'indexLevel', indexlevel=1, zlevel=0, spatialfilter=afilter) #}}}
 
 
 def build_particle_file(f_init, f_name, f_decomp, types, spatialfilter, buoySurf, nVertLevels, downsample, vertseedtype): #{{{
 
-    xCell, yCell, zCell = cell_centers(f_init, downsample)
+    cpts, xCell, yCell, zCell = cell_centers(f_init, downsample)
 
     # build particles
     particlelist = []
     if 'buoyancy' in types or 'all' in types:
-        particlelist.append(build_isopycnal_particles(xCell, yCell, zCell, buoySurf, spatialfilter))
+        particlelist.append(build_isopycnal_particles(cpts, xCell, yCell, zCell, buoySurf, spatialfilter))
     if 'passive' in types or 'all' in types:
-        particlelist.append(build_passive_floats(xCell, yCell, zCell, f_init, nVertLevels, spatialfilter, vertseedtype))
+        particlelist.append(build_passive_floats(cpts, xCell, yCell, zCell, f_init, nVertLevels, spatialfilter, vertseedtype))
     # apply surface particles everywhere to ensure that LIGHT works
     # (allow for some load-imbalance for filters)
     if 'surface' in types or 'all' in types:
-        particlelist.append(build_surface_floats(xCell, yCell, zCell, spatialfilter))
+        particlelist.append(build_surface_floats(cpts, xCell, yCell, zCell, spatialfilter))
 
     # write particles to disk
     ParticleList(particlelist).write(f_name, f_decomp)
