@@ -77,8 +77,10 @@ def remap_particles(fin, fpart, fdecomp): #{{{
     currentBlock = f_part.variables['currentBlock']
     try:
         currentCell = f_part.variables['currentCell']
+        currentCellGlobalID = f_part.variables['currentCellGlobalID']
     except:
         currentCell = f_part.createVariable('currentCell', 'i', ('nParticles'))
+        currentCellGlobalID = f_part.createVariable('currentCellGlobalID', 'i', ('nParticles'))
 
     # get the cell positions
     xcell = f_in.variables['xCell']
@@ -97,6 +99,7 @@ def remap_particles(fin, fpart, fdecomp): #{{{
     decomp = np.genfromtxt(fdecomp)
     currentBlock[-1,:] = decomp[cellIndices]
     currentCell[-1,:] = -1
+    currentCellGlobalID[-1,:] = cellIndices + 1
 
     # close the files
     f_in.close()
@@ -185,6 +188,7 @@ class Particles(): #{{{
             self.buoysurf = buoysurf
         self.buoypart = ensure_shape(x, buoypart)[ids]
         self.cellindices = cellindices[ids]
+        self.cellGlobalID = cellindices[ids]
 
         # index level following floats
         self.indexlevel = ensure_shape(x, indexlevel)[ids]
@@ -267,6 +271,7 @@ class ParticleList(): #{{{
         f_out.createVariable('buoyancyParticle', 'f8', ('Time','nParticles'))
         f_out.createVariable('currentBlock', 'i', ('Time', 'nParticles'))
         f_out.createVariable('currentCell', 'i', ('Time', 'nParticles'))
+        f_out.createVariable('currentCellGlobalID', 'i', ('Time', 'nParticles'))
         f_out.createVariable('indexToParticleID', 'i', ('nParticles'))
         f_out.createVariable('verticalTreatment', 'i', ('Time','nParticles'))
         f_out.createVariable('indexLevel', 'i', ('Time','nParticles'))
@@ -303,6 +308,7 @@ class ParticleList(): #{{{
         f_out.variables['currentBlock'][0,:] = decomp[self.cellindices]
         f_out.variables['currentBlockReset'][:] = decomp[self.cellindices]
         f_out.variables['currentCell'][0,:] = -1
+        f_out.variables['currentCellGlobalID'][0,:] = self.cellGlobalID + 1
         f_out.variables['currentCellReset'][:] = -1
         f_out.variables['xParticleReset'][:] = f_out.variables['xParticle'][0,:]
         f_out.variables['yParticleReset'][:] = f_out.variables['yParticle'][0,:]
