@@ -152,6 +152,7 @@ contains
       block_ptr => block_ptr % next
     end do
     call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth , globalMaxBottomDepth) 
+    globalMaxBottomDepth = 60.0_RKIND
 
     !--------------------------------------------------------------------
     ! Use this section to set initial values
@@ -203,15 +204,25 @@ contains
           ! Set ssh
           ssh(iCell) = 0.0_RKIND 
 
-          ! initialize with constant number of layers globally
-          maxLevelCell(iCell) = nVertLevels 
+          ! enforce minimum and maximum bottom depth
+          bottomDepth(iCell) = max(10.0_RKIND, bottomDepth(iCell))
+          bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
 
-          ! enforce minimum bottom depth
-          bottomDepth(iCell) = max(3.0_RKIND, bottomDepth(iCell))
+          ! Determine maxLevelCell based on bottomDepth and refBottomDepth
+          maxLevelCell(iCell) = nVertLevels
+          if (nVertLevels > 1) then
+            do k = 1, nVertLevels
+              if (bottomDepth(iCell) < refBottomDepth(k)) then
+                maxLevelCell(iCell) = k-1
+                bottomDepth(iCell) = refBottomDepth(k-1)
+                exit
+              end if
+            end do
+          end if
 
           ! set layer thicknesses
           do k=1, maxLevelCell(iCell)
-            layerThickness(k,iCell) = (ssh(iCell) + bottomDepth(iCell))/float(maxLevelCell(iCell))
+            layerThickness(k,iCell) = bottomDepth(iCell) * (interfaceLocations(k+1) - interfaceLocations(k))
             restingThickness(k, iCell) = layerThickness(k, iCell)
           end do
 
