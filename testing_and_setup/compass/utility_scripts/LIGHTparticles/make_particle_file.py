@@ -366,6 +366,8 @@ def cell_centers(f_init, downsample): #{{{
     if downsample:
         tri = f_init.variables['cellsOnVertex'][:,:] - 1
         cpts, xCell, yCell, zCell = downsample_points(xCell, yCell, zCell, tri, downsample)
+    else:
+        cpts = np.arange(len(xCell))
     f_init.close()
 
     return cpts, xCell, yCell, zCell  #}}}
