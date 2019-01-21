@@ -163,14 +163,14 @@ class Particles(): #{{{
             resettime=np.nan, xreset=np.nan, yreset=np.nan, zreset=np.nan, zlevelreset=np.nan): #{{{
 
         # start with all the indicies and restrict
-        ids = np.arange(len(x))
+        ids = np.ones((len(x)), dtype=bool)
         if type(spatialfilter) is str:
             spatialfilter = [spatialfilter]
         if spatialfilter:
             if np.max(['SouthernOceanXYZ' == afilter for afilter in spatialfilter]):
-                ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_xyz(x,y,z)])
+                ids = ids = np.logical_and(ids, southern_ocean_only_xyz(x,y,z))
             if np.max(['SouthernOceanPlanar' == afilter for afilter in spatialfilter]):
-                ids = np.intersect1d(ids, np.arange(len(x))[southern_ocean_only_planar(x,y,z)])
+                ids = np.logical_and(ids, southern_ocean_only_planar(x,y,z))
 
         self.x = x[ids]
         self.y = y[ids]
