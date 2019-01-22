@@ -168,7 +168,7 @@ class Particles(): #{{{
             spatialfilter = [spatialfilter]
         if spatialfilter:
             if np.max(['SouthernOceanXYZ' == afilter for afilter in spatialfilter]):
-                ids = ids = np.logical_and(ids, southern_ocean_only_xyz(x,y,z))
+                ids = np.logical_and(ids, southern_ocean_only_xyz(x,y,z))
             if np.max(['SouthernOceanPlanar' == afilter for afilter in spatialfilter]):
                 ids = np.logical_and(ids, southern_ocean_only_planar(x,y,z))
 
