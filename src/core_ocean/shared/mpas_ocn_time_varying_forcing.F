@@ -420,7 +420,7 @@ contains
        windStressZonal(iCell) = windSpeedU(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
        windStressMeridional(iCell) = windSpeedV(iCell) * windSpeedMagnitude(iCell) * windStressCoefficient
 
-       atmosphericPressure(iCell) = (1.0_RKIND-ramp)*101325.0_RKIND + ramp*atmosPressure(iCell)
+       atmosphericPressure(iCell) = ((1.0_RKIND-ramp)*101325.0_RKIND + ramp*atmosPressure(iCell)) - 101325.0_RKIND
 
     enddo
 
