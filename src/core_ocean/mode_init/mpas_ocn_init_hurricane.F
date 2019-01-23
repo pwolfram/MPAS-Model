@@ -104,7 +104,7 @@ contains
     integer, dimension(:), pointer :: maxLevelCell 
     real (kind=RKIND), dimension(:), pointer :: ssh
     real (kind=RKIND), dimension(:), pointer :: refBottomDepth, refZMid, &
-         vertCoordMovementWeights, bottomDepth, &
+         vertCoordMovementWeights, bottomDepth, bottomDepthObserved, &
          fCell, fEdge, fVertex, &
          latCell, latEdge, latVertex
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
@@ -175,6 +175,7 @@ contains
 
        call mpas_pool_get_array(meshPool, 'vertCoordMovementWeights', vertCoordMovementWeights)
        call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+       call mpas_pool_get_array(meshPool, 'bottomDepthObserved', bottomDepthObserved)
        call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
        call mpas_pool_get_array(meshPool, 'latCell', latCell)
        call mpas_pool_get_array(meshPool, 'latEdge', latEdge)
@@ -205,7 +206,7 @@ contains
           ssh(iCell) = 0.0_RKIND 
 
           ! enforce minimum and maximum bottom depth
-          bottomDepth(iCell) = max(10.0_RKIND, bottomDepth(iCell))
+          bottomDepth(iCell) = max(10.0_RKIND, bottomDepthObserved(iCell))
           bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
 
           ! Determine maxLevelCell based on bottomDepth and refBottomDepth
@@ -221,8 +222,8 @@ contains
           end if
 
           ! set layer thicknesses
-          do k=1, maxLevelCell(iCell)
-            layerThickness(k,iCell) = bottomDepth(iCell) * (interfaceLocations(k+1) - interfaceLocations(k))
+          do k = 1, nVertLevels 
+            layerThickness(k,iCell) = globalMaxBottomDepth * (interfaceLocations(k+1) - interfaceLocations(k))
             restingThickness(k, iCell) = layerThickness(k, iCell)
           end do
 

@@ -111,12 +111,12 @@ if __name__ == "__main__":
 
     # Create new NetCDF variables in mesh file, if necessary
     nc_vars = nc_mesh.variables.keys()
-    if 'bottomDepth' not in nc_vars:
-        nc_mesh.createVariable('bottomDepth', 'f8', ('nCells'))
+    if 'bottomDepthObserved' not in nc_vars:
+        nc_mesh.createVariable('bottomDepthObserved', 'f8', ('nCells'))
     if 'cullCell' not in nc_vars:
         nc_mesh.createVariable('cullCell', 'i', ('nCells'))
 
     # Write to mesh file
-    nc_mesh.variables['bottomDepth'][:] = -bathymetry
-    nc_mesh.variables['cullCell'][:] = nc_mesh.variables['bottomDepth'][:] > 20.0
+    nc_mesh.variables['bottomDepthObserved'][:] = -bathymetry
+    nc_mesh.variables['cullCell'][:] = nc_mesh.variables['bottomDepthObserved'][:] > 20.0
     nc_mesh.close()
