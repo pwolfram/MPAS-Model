@@ -382,7 +382,7 @@ contains
         daysSinceStartOfSim
 
     integer, pointer :: &
-         nCellsSolve
+         nCells
 
     integer :: &
          iCell
@@ -394,7 +394,7 @@ contains
     call MPAS_pool_get_subpool(block % structs, "timeVaryingForcing", timeVaryingForcingPool)
     call MPAS_pool_get_subpool(block % structs, "diagnostics", diagnosticsPool)
 
-    call MPAS_pool_get_dimension(mesh, "nCellsSolve", nCellsSolve)
+    call MPAS_pool_get_dimension(mesh, "nCells", nCells)
 
     call MPAS_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
     call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedU", windSpeedU)
@@ -410,7 +410,7 @@ contains
 
     ramp = tanh((2.0_RKIND*daysSinceStartOfSim)/config_forcing_ramp)
 
-    do iCell = 1, nCellsSolve
+    do iCell = 1, nCells
 
        windSpeedU(iCell) = ramp*windSpeedU(iCell)
        windSpeedV(iCell) = ramp*windSpeedV(iCell)
