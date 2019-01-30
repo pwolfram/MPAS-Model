@@ -27,7 +27,7 @@ def make_data_array(values, scaling, forcing):
 
 windSpeedU = make_data_array(forcing.windStressZonal.values, scaling, forcing)
 windSpeedV = make_data_array(forcing.windStressMeridional.values, scaling, forcing)
-atmosphericPressure = forcing.windStressZonal*0.0 + 101325.0
+atmosphericPressure = windSpeedU*0.0
 
 ncds = netCDF4.Dataset('atmospheric_forcing.nc', 'w', format='NETCDF3_64BIT_OFFSET')
 
