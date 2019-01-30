@@ -299,6 +299,8 @@ contains
 
     type (MPAS_timeInterval_type) :: timeStepESMF
 
+    character(len=StrKIND) :: timeStamp
+
     real (kind=RKIND) :: dtSim
 
     integer :: err
@@ -322,7 +324,8 @@ contains
          forcingGroupHead, &               ! forcingGroupHead
          "ocn_atmospheric_forcing", &      ! forcingGroupName
          currentForcingTime)               ! forcingTime
-
+    !call mpas_get_time(curr_time=currentForcingTime, dateTimeString=timeStamp, ierr=err)
+    !call mpas_log_write('Forcing time ' // trim(timeStamp))
 
     ! perform post forcing
     block => domain % blocklist
