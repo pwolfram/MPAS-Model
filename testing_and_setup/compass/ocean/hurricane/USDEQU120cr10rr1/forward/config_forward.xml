@@ -2,7 +2,6 @@
 <config case="forward">
 	<add_link source="../init/ocean.nc" dest="input.nc"/>
 	<add_link source="../init/graph.info" dest="graph.info"/>
-	<add_link source="../init/mesh.nc" dest="mesh.nc"/>
 	<add_link source="/users/sbrus/scratch4/MPAS-O_testing/ocean/hurricane/USDEQU120cr10rr1/time_varying_forcing/wind_data/atmospheric_forcing.nc" dest="atmospheric_forcing.nc"/>
 
 	<add_executable source="model" dest="ocean_model"/>
@@ -13,6 +12,7 @@
 		<option name="config_run_duration">'00-01_00:00:00'</option>
 
 <!--
+		<option name="config_time_integrator">'split_explicit'</option>
 		<option name="config_dt">'00:01:00'</option>
 		<option name="config_btr_dt">'0000_00:00:20'</option>
 -->
@@ -31,6 +31,12 @@
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
+		<stream name="mesh">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
+		<stream name="input">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
 		<template file="minimal_output.xml" path_base="script_core_dir" path="templates/streams"/>
 		<stream name="output">
 			<attribute name="output_interval">06:00:00</attribute>
@@ -44,18 +50,12 @@
 				<member name="tracers"/>
 			</remove_contents>
 		</stream>
-		<stream name="mesh">
-			<attribute name="filename_template">mesh.nc</attribute>
-		</stream>
-		<stream name="input">
-			<attribute name="filename_template">input.nc</attribute>
-		</stream>
 	</streams>
 
 	<run_script name="run.py">
 		<step executable="./metis">
-			<argument flag="graph.info">36</argument>
+			<argument flag="graph.info">144</argument>
 		</step>
-		<model_run procs="36" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+		<model_run procs="144" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
 	</run_script>
 </config>

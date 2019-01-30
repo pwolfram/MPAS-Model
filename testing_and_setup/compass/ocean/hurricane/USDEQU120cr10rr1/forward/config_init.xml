@@ -14,11 +14,21 @@
 		<option name="config_realistic_coriolis_parameter">.true.</option>
 		<option name="config_vertical_grid">'uniform'</option>
 		<option name="config_hurricane_vert_levels">30</option>
+		<option name="config_hurricane_min_depth">10.0</option>
+		<option name="config_hurricane_max_depth">60.0</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">
 		<stream name="input_init">
 			<attribute name="filename_template">mesh.nc</attribute>
+		</stream>
+		<stream name="bathymetry">
+			<attribute name="filename_template">mesh.nc</attribute>
+	                <attribute name="type">input</attribute>
+	                <attribute name="input_interval">initial_only</attribute>
+			<add_contents>
+				<member name="bottomDepthObserved" type="var"/>
+			</add_contents>                
 		</stream>
 		<stream name="output_init">
 			<attribute name="type">output</attribute>
@@ -34,6 +44,7 @@
 				<member name="restingThickness" type="var"/>
 				<member name="refBottomDepth" type="var"/>
 				<member name="bottomDepth" type="var"/>
+				<member name="bottomDepthObserved" type="var"/>
 				<member name="maxLevelCell" type="var"/>
 				<member name="vertCoordMovementWeights" type="var"/>
 				<member name="ssh" type="var"/>
