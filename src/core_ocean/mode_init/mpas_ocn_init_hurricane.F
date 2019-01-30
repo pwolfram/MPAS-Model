@@ -94,6 +94,8 @@ contains
     ! Define config variable pointers
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
     integer, pointer :: config_hurricane_vert_levels
+    real (kind=RKIND), pointer :: config_hurricane_min_depth
+    real (kind=RKIND), pointer :: config_hurricane_max_depth
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
@@ -117,9 +119,10 @@ contains
     if(config_init_configuration .ne. trim('hurricane')) return
 
     ! Get config flag settings
-
     call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_vert_levels', config_hurricane_vert_levels)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_min_depth', config_hurricane_min_depth)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_max_depth', config_hurricane_max_depth)
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
@@ -143,16 +146,18 @@ contains
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-      call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+      call mpas_pool_get_array(meshPool, 'bottomDepthObserved', bottomDepthObserved)
 
-      if (MAXVAL(bottomDepth) > maxBottomDepth) then
-        maxBottomDepth = MAXVAL(bottomDepth)
+      if (MAXVAL(bottomDepthObserved) > maxBottomDepth) then
+        maxBottomDepth = MAXVAL(bottomDepthObserved)
       end if
 
       block_ptr => block_ptr % next
     end do
-    call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth , globalMaxBottomDepth) 
-    globalMaxBottomDepth = 60.0_RKIND
+    call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth, globalMaxBottomDepth) 
+    if (config_hurricane_max_depth < globalMaxBottomDepth) then 
+       globalMaxBottomDepth = config_hurricane_max_depth
+    end if
 
     !--------------------------------------------------------------------
     ! Use this section to set initial values
@@ -206,7 +211,7 @@ contains
           ssh(iCell) = 0.0_RKIND 
 
           ! enforce minimum and maximum bottom depth
-          bottomDepth(iCell) = max(10.0_RKIND, bottomDepthObserved(iCell))
+          bottomDepth(iCell) = max(config_hurricane_min_depth, bottomDepthObserved(iCell))
           bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
 
           ! Determine maxLevelCell based on bottomDepth and refBottomDepth
