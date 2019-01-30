@@ -1309,7 +1309,6 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="fCell"/>
-			<var name="bottomDepthObserved"/>
 		</stream>
 
 		<stream name="output_init"
@@ -1422,7 +1421,7 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="fCell"/>
-			<var name="bottomDepthObserved"/>
+			<var name="bottomDepth"/>
 			<var name="maxLevelCell"/>
 			<var name="refBottomDepth" packages="forwardMode;analysisMode"/>
 			<var name="restingThickness" packages="forwardMode;analysisMode"/>
@@ -1439,7 +1438,6 @@
 			<var_struct name="tracers"/>
 			<var name="normalVelocity"/>
 			<var name="layerThickness"/>
-			<var name="bottomDepth"/>
 			<var name="highFreqThickness"/>
 			<var name="lowFreqDivergence"/>
 			<var name="effectiveDensityInLandIce"/>
