@@ -25,7 +25,7 @@
                 <option name="config_use_time_varying_atmospheric_forcing">.true.</option>
                 <option name="config_time_varying_atmospheric_forcing_start_time">'2012-10-01_00:00:00'</option>
                 <option name="config_time_varying_atmospheric_forcing_reference_time">'2012-10-01_00:00:00'</option>
-                <option name="config_time_varying_atmospheric_forcing_cycle_start">'2012-10-01_00:00:00'</option>
+                <option name="config_time_varying_atmospheric_forcing_cycle_start">'none'</option>
                 <option name="config_time_varying_atmospheric_forcing_interval">'01:00:00'</option>
                 <option name="config_time_varying_atmospheric_forcing_ramp">20.0</option>
 	</namelist>
