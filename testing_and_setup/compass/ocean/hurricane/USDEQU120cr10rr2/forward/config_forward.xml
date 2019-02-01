@@ -11,13 +11,13 @@
                 <option name="config_start_time">'2012-10-01_00:00:00'</option>
 		<option name="config_run_duration">'00-01_00:00:00'</option>
 
-<!--
 		<option name="config_time_integrator">'split_explicit'</option>
-		<option name="config_dt">'00:01:00'</option>
-		<option name="config_btr_dt">'0000_00:00:20'</option>
--->
+		<option name="config_dt">'00:00:30'</option>
+		<option name="config_btr_dt">'0000_00:00:03'</option>
+<!--
 		<option name="config_dt">'00:00:05'</option>
 		<option name="config_time_integrator">'RK4'</option>
+-->
 		<option name="config_mom_del4">4.0e8</option>
 		<option name="config_use_mom_del4">.true.</option>
 		<option name="config_vert_coord_movement">'uniform_stretching'</option>
@@ -27,7 +27,7 @@
                 <option name="config_time_varying_atmospheric_forcing_reference_time">'2012-10-01_00:00:00'</option>
                 <option name="config_time_varying_atmospheric_forcing_cycle_start">'none'</option>
                 <option name="config_time_varying_atmospheric_forcing_interval">'01:00:00'</option>
-                <option name="config_time_varying_atmospheric_forcing_ramp">20.0</option>
+                <option name="config_time_varying_atmospheric_forcing_ramp">10.0</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
@@ -41,10 +41,11 @@
 		<stream name="output">
 			<attribute name="output_interval">06:00:00</attribute>
 			<add_contents>
-				<member name="windSpeedU" type="var"/>
-				<member name="windSpeedV" type="var"/>
+				<member name="atmosphericPressure" type="var"/>
 				<member name="windSpeedMagnitude" type="var"/>
 				<member name="ssh" type="var"/>
+				<member name="kineticEnergyCell" type="var"/>
+				<member name="CFLNumberGlobal" type="var"/>
 			</add_contents>
 			<remove_contents>
 				<member name="tracers"/>

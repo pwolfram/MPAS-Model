@@ -31,7 +31,7 @@ def cellWidthVsLatLon():
     params["region_box"] = ct.Delaware_Bay
     params["plot_box"] = ct.Delaware
     params["restrict_box"] = ct.Delaware_restrict
-    params["dx_min_coastal"] = 1.0 * km
+    params["dx_min_coastal"] = 2.0 * km
     params["trans_width"] = 100.0 * km
     params["trans_start"] = 17.0 * km
 
