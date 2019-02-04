@@ -26,7 +26,7 @@
 		<template file="forcing_data.xml" path_base="script_core_dir" path="templates/streams"/>
 		<template file="soma_run.xml" path_base="script_configuration_dir"/>
 		<stream name="output">
-			<attribute name="output_interval">0000-00-00_00:01:30</attribute>
+			<attribute name="output_interval">0000-00-00_01:00:00</attribute>
 			<add_contents>
 				<member name="windSpeedU" type="var"/>
 				<member name="windSpeedV" type="var"/>
