@@ -2,14 +2,14 @@
 <config case="forward">
 	<add_link source="../init/ocean.nc" dest="input.nc"/>
 	<add_link source="../init/graph.info" dest="graph.info"/>
-	<add_link source="/users/sbrus/scratch4/MPAS-O_testing/ocean/hurricane/USDEQU120cr10rr1/time_varying_forcing/wind_data/atmospheric_forcing.nc" dest="atmospheric_forcing.nc"/>
+	<add_link source="../init/atmospheric_forcing.nc" dest="atmospheric_forcing.nc"/>
 
 	<add_executable source="model" dest="ocean_model"/>
 	<add_executable source="metis" dest="metis"/>
 
 	<namelist name="namelist.ocean" mode="forward">
                 <option name="config_start_time">'2012-10-01_00:00:00'</option>
-		<option name="config_run_duration">'00-01_00:00:00'</option>
+		<option name="config_run_duration">'00-40_00:00:00'</option>
 
 		<option name="config_time_integrator">'split_explicit'</option>
 		<option name="config_dt">'00:00:30'</option>
@@ -18,6 +18,7 @@
 		<option name="config_dt">'00:00:05'</option>
 		<option name="config_time_integrator">'RK4'</option>
 -->
+		<option name="config_hmix_scaleWithMesh">.true.</option>
 		<option name="config_mom_del4">4.0e8</option>
 		<option name="config_use_mom_del4">.true.</option>
 		<option name="config_vert_coord_movement">'uniform_stretching'</option>
@@ -27,7 +28,7 @@
                 <option name="config_time_varying_atmospheric_forcing_reference_time">'2012-10-01_00:00:00'</option>
                 <option name="config_time_varying_atmospheric_forcing_cycle_start">'none'</option>
                 <option name="config_time_varying_atmospheric_forcing_interval">'01:00:00'</option>
-                <option name="config_time_varying_atmospheric_forcing_ramp">10.0</option>
+                <option name="config_time_varying_atmospheric_forcing_ramp">20.0</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
@@ -39,16 +40,16 @@
 		</stream>
 		<template file="minimal_output.xml" path_base="script_core_dir" path="templates/streams"/>
 		<stream name="output">
-			<attribute name="output_interval">06:00:00</attribute>
+			<attribute name="output_interval">12:00:00</attribute>
 			<add_contents>
 				<member name="atmosphericPressure" type="var"/>
 				<member name="windSpeedMagnitude" type="var"/>
 				<member name="ssh" type="var"/>
 				<member name="kineticEnergyCell" type="var"/>
-				<member name="CFLNumberGlobal" type="var"/>
 			</add_contents>
 			<remove_contents>
 				<member name="tracers"/>
+                                <member name="normalVelocity"/>
 			</remove_contents>
 		</stream>
 	</streams>

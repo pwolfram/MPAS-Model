@@ -2,6 +2,9 @@
 <config case="init">
 	<add_link source="../../build_mesh/culled_mesh/culled_mesh.nc" dest="mesh.nc"/>
 	<add_link source="../../build_mesh/culled_mesh/culled_graph.info" dest="graph.info"/>
+	<add_link source="/users/sbrus/scratch4/MPAS-O_testing/ocean/hurricane/time_varying_forcing/wind_data/wnd10m.nc" dest="wnd10m.nc"/>
+	<add_link source="/users/sbrus/scratch4/MPAS-O_testing/ocean/hurricane/time_varying_forcing/wind_data/prmsl.nc" dest="prmsl.nc"/>
+	<add_link source="/users/sbrus/scratch4/MPAS-O_testing/ocean/hurricane/time_varying_forcing/ww3_utils/wind/interpolate_time_varying_forcing.py" dest="interpolate_time_varying_forcing.py"/>
 
 	<add_executable source="model" dest="ocean_model"/>
 	<add_executable source="metis" dest="metis"/>
@@ -12,10 +15,10 @@
 		<option name="config_ocean_run_mode">'init'</option>
 		<option name="config_write_cull_cell_mask">.false.</option>
 		<option name="config_realistic_coriolis_parameter">.true.</option>
-		<option name="config_vertical_grid">'uniform'</option>
-		<option name="config_hurricane_vert_levels">30</option>
-		<option name="config_hurricane_min_depth">10.0</option>
-		<option name="config_hurricane_max_depth">60.0</option>
+		<option name="config_vertical_grid">'60layerPHC'</option>
+		<option name="config_hurricane_vert_levels">60</option>
+		<option name="config_hurricane_min_depth">30.0</option>
+		<option name="config_hurricane_max_depth">2000.0</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">
@@ -58,6 +61,9 @@
 		        <argument flag="graph.info">6</argument>
 		</step>
 -->
+		<step executable="python">
+			<argument flag="interpolate_time_varying_forcing.py"></argument>
+		</step>
 		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
 	</run_script>
 

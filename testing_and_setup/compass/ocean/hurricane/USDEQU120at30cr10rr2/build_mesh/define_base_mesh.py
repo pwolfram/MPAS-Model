@@ -11,13 +11,23 @@ def cellWidthVsLatLon():
 
     params["mesh_type"] = "QU"
     params["dx_max_global"] = 120.0 * km
+    params["region_box"] = ct.Atlantic 
+    params["restrict_box"] = ct.Atlantic_restrict
+    params["plot_box"] = ct.Western_Atlantic
+    params["dx_min_coastal"] = 30.0 * km
+    params["trans_width"] = 5000.0 * km
+    params["trans_start"] = 500.0 * km
+
+    cell_width, lon, lat = ct.coastal_refined_mesh(params)
+
     params["region_box"] = ct.Delaware_Bay
     params["plot_box"] = ct.Western_Atlantic
     params["dx_min_coastal"] = 10.0 * km
     params["trans_width"] = 600.0 * km
     params["trans_start"] = 400.0 * km
 
-    cell_width, lon, lat = ct.coastal_refined_mesh(params)
+    cell_width, lon, lat = ct.coastal_refined_mesh(
+        params, cell_width, lon, lat)
 
     params["region_box"] = ct.Delaware_Region
     params["plot_box"] = ct.Delaware

@@ -94,6 +94,8 @@ Aleutian_Islands_E = {"include": [np.array([-180.0, -151.79, 49.54, 58.83])],
 Aleutian_Islands_W = {"include": [np.array([171.8, 180.0, 49.54, 58.83])],
                       "exclude": [np.array([178.5, 179.5, 51.25, 51.75])]}
 
+Atlantic = {"include": [np.array([-78.5, -77.5, 23.5, 25.25])],  # Bahamas, use with large transition start to fill Atlantic
+            "exclude": []}
 
 # Combined coastlines
 CONUS = {"include": [], "exclude": []}
@@ -168,6 +170,23 @@ Bering_Sea_restrict = {"include": [],
                                              [-173.80, 65.94],
                                              [-161.81, 72.02],
                                              [163.64, 73.70]])]}
+
+Atlantic_restrict = {"include": [np.array([[-86.39, 13.67],
+                                           [-24.44, 21.32],
+                                           [-50.09, 55.98],
+                                           [-105.58, 23.61]]),
+                                 np.array([[-76.39, 4.55],
+                                           [-30.74, -2.66],
+                                           [-30.83, 43.95],
+                                           [-94.99, 18.47]])],
+                     "exclude": [np.array([[-80.72, 1.66],
+                                           [-73.70, 3.03],
+                                           [-78.94, 9.33],
+                                           [-84.98, 7.67]]),
+                                 np.array([[-100.18, 13.76],
+                                           [-82.93, 6.51],
+                                           [-85.08, 13.74],
+                                           [-95.86, 18.04]])]}
 
 ##########################################################################
 # User-defined inputs
