@@ -90,6 +90,7 @@ contains
     real (kind=RKIND) :: dlon, dlat, dw
     real (kind=RKIND) :: maxBottomDepth, globalMaxBottomDepth
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
+    real (kind=RKIND), parameter :: pi = 4.0_RKIND*ATAN(1.0_RKIND) 
 
     ! Define config variable pointers
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
@@ -108,7 +109,8 @@ contains
     real (kind=RKIND), dimension(:), pointer :: refBottomDepth, refZMid, &
          vertCoordMovementWeights, bottomDepth, bottomDepthObserved, &
          fCell, fEdge, fVertex, &
-         latCell, latEdge, latVertex
+         latCell, latEdge, latVertex, &
+         lonCell
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
@@ -182,6 +184,7 @@ contains
        call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
        call mpas_pool_get_array(meshPool, 'bottomDepthObserved', bottomDepthObserved)
        call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+       call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
        call mpas_pool_get_array(meshPool, 'latCell', latCell)
        call mpas_pool_get_array(meshPool, 'latEdge', latEdge)
        call mpas_pool_get_array(meshPool, 'latVertex', latVertex)
@@ -213,6 +216,14 @@ contains
           ! enforce minimum and maximum bottom depth
           bottomDepth(iCell) = max(config_hurricane_min_depth, bottomDepthObserved(iCell))
           bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
+
+          if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
+               lonCell(iCell) < (-62.0_RKIND+360.0_RKIND)*pi/180.0_RKIND)  .and. &
+              (latCell(iCell) >  30.0_RKIND*pi/180.0_RKIND .and. &
+               latCell(iCell) <  34.0_RKIND*pi/180.0_RKIND)) then
+            
+            bottomDepth(iCell) = globalMaxBottomDepth
+          end if
 
           ! Determine maxLevelCell based on bottomDepth and refBottomDepth
           maxLevelCell(iCell) = nVertLevels
