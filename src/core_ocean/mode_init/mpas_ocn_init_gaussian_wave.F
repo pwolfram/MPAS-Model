@@ -97,7 +97,7 @@ contains
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
     integer, pointer :: config_gaussian_wave_vert_levels
     real (kind=RKIND), pointer :: config_gaussian_wave_lon_center, config_gaussian_wave_lat_center, &
-      config_gaussian_wave_width, config_gaussian_wave_amplitude
+      config_gaussian_wave_width, config_gaussian_wave_amplitude, config_gaussian_wave_slr_amp
     logical, pointer :: config_use_wetting_drying
     real (kind=RKIND), pointer :: config_drying_min_cell_height
 
@@ -131,6 +131,7 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_gaussian_wave_lat_center', config_gaussian_wave_lat_center)
     call mpas_pool_get_config(ocnConfigs, 'config_gaussian_wave_width', config_gaussian_wave_width)
     call mpas_pool_get_config(ocnConfigs, 'config_gaussian_wave_amplitude', config_gaussian_wave_amplitude)
+    call mpas_pool_get_config(ocnConfigs, 'config_gaussian_wave_slr_amp', config_gaussian_wave_slr_amp)
 
     ! wetting and drying parameters
     call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
@@ -212,7 +213,8 @@ contains
           dlon = abs(lonCell(iCell) - config_gaussian_wave_lon_center*pii/180.0_RKIND)
           dw = config_gaussian_wave_width*pii/180.0_RKIND
           if (dlon > pii) dlon = dlon - 2.0_RKIND**pii
-          ssh(iCell) = config_gaussian_wave_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
+          ssh(iCell) = config_gaussian_wave_slr_amp + &
+                       config_gaussian_wave_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
                                                               (2.0_RKIND*dw**2.0_RKIND))
 
           !! handle dry cell case to get needed layer numbers

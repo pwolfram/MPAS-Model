@@ -19,4 +19,8 @@
 			description="Amplitude of gaussian wave."
 			possible_values="Any real number greater than 0.0"
 		/>
+		<nml_option name="config_gaussian_wave_slr_amp" type="real" default_value="0.0" units="m"
+			description="Amplitude of sea level rise."
+			possible_values="Any real number."
+		/>
 	</nml_record>
