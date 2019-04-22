@@ -1,6 +1,7 @@
 <run_config>
 	<define_env_var name="OMP_NUM_THREADS" value="attr_threads"/>
 	<step executable="mpirun">
+		<argument flag="-hosts">127.0.0.1</argument>
 		<argument flag="-n">attr_procs</argument>
 		<argument flag="">model</argument>
 		<argument flag="-n">attr_namelist</argument>
