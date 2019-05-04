@@ -11,6 +11,9 @@
 	<test name="SOMA 32km - LIGHT particle time general test" core="ocean" configuration="soma" resolution="32km" test="default">
 		<script name="run_test.py"/>
 	</test>
+	<test name="SOMA 32km - LIGHT particles missing on a processor on init test" core="ocean" configuration="soma" resolution="32km" test="test_no_particles_on_a_proc">
+		<script name="run_test.py"/>
+	</test>
 	<test name="ZISO 20km - LIGHT particle time general test" core="ocean" configuration="ziso" resolution="20km" test="default">
 		<script name="run_test.py"/>
 	</test>
