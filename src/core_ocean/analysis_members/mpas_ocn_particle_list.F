@@ -513,6 +513,10 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
           sendNeigh(ioProcNeighs(i)+1) = .true.
         end do
         deallocate(ioProcNeighs)
+      else
+        !ioProcNeighs only used to set up sendNeigh array
+        if (associated(ioProcNeighs)) deallocate(ioProcNeighs)
+        LIGHT_DEBUG_WRITE('currentBlocks is not allocated')
       end if
 
       LIGHT_DEBUG_WRITE('sendNeigh = ' COMMA sendNeigh)
@@ -2652,6 +2656,9 @@ end subroutine empty_list_particlelists!}}}
 
       totalSize = 0
 
+      attrData => NULL()
+      tempIntegerArray => NULL()
+
       block => domain % blocklist
       do while(associated(block))
         nPart = count_particlelist(block % particlelist)
@@ -2683,7 +2690,9 @@ end subroutine empty_list_particlelists!}}}
 
       ! get unique array for complete list
       !if(associated(tempIntegerArray)) print *,  'tempIntegerArray = ', tempIntegerArray
-      call uniqueIntegerList(tempIntegerArray, attrData)
+      if (totalSize > 0) then
+        call uniqueIntegerList(tempIntegerArray, attrData)
+      end if
 
       if (associated(tempIntegerArray)) deallocate(tempIntegerArray)
 
