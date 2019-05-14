@@ -23,7 +23,7 @@
 		<option name="config_run_duration">'0000_00:01:30'</option>
 		<option name="config_mom_del4">2.0e11</option>
 		<option name="config_btr_dt">'0000_00:00:25'</option>
-		<option name="config_AM_eliassenPalm_enable ">.false.</option>
+		<option name="config_AM_eliassenPalm_enable">.false.</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
@@ -57,7 +57,7 @@
 			<argument flag="">mesh.nc</argument>
 			<argument flag="">particles.nc</argument>
 			<argument flag="">graph.info.part.4</argument>
-			<argument flag="">11</argument>
+			<argument flag="">1</argument>
 		</step>
 		<step executable="cp">
 			<argument flag="particles.nc">particles_old.nc</argument>
@@ -75,8 +75,26 @@
 			<argument flag="">4</argument>
 		</step>
 		<model_run procs="4" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+		<step executable="rm">
+			<argument flag="-rf">particles.nc</argument>
+		</step>
+		<step executable="ncks">
+			<argument flag="-d">nParticles,1,1</argument>
+			<argument flag="">particles_old.nc</argument>
+			<argument flag="">particles.nc</argument>
+		</step>
 		<step executable="python">
-			<argument flag="">remove_proc_particles.py</argument>
+			<argument flag="">verify_missing_particle_proc.py</argument>
+			<argument flag="">4</argument>
+		</step>
+		<model_run procs="4" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+		<step executable="rm">
+			<argument flag="-rf">particles.nc</argument>
+		</step>
+		<step executable="ncks">
+			<argument flag="-d">nParticles,1,30,10</argument>
+			<argument flag="">particles_old.nc</argument>
+			<argument flag="">particles.nc</argument>
 		</step>
 		<step executable="python">
 			<argument flag="">verify_missing_particle_proc.py</argument>
