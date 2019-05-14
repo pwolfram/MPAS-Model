@@ -767,8 +767,21 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
      err = 0
 
      ! allocate particle list in terms of its communication dimesion to other processors
-     allocate(listPLSend(size(procNeighs)),listPLRecv(size(procNeighs)))
-     allocate(nPartSend(size(procNeighs)),nPartRecv(size(procNeighs)))
+     ! note, if there are no particles on a processor and we are in the IO stage, then
+     ! procNeighs is empty, so there is no sending or receiving to be done
+     if (size(procNeighs) > 0) then
+       allocate(listPLSend(size(procNeighs)),listPLRecv(size(procNeighs)))
+       allocate(nPartSend(size(procNeighs)),nPartRecv(size(procNeighs)))
+!     else
+!       ! intentionally leave listPL* nPart* unallocated to designate no particle cases
+!       allocate(nPartSend(1), nPartRecv(1))
+!       nPartSend = -1
+!       nPartRecv = -1
+     !  ! since there is no halo (which designates symetric communication),
+     !  ! there cannot be any communication
+     !  LIGHT_DEBUG_WRITE('No particles on proc ' COMMA domain % dminfo % my_proc_id)
+     !  return
+     end if
 
      ! if statement inside each of the group's subroutines needs removed for parallel IO which
      ! assumes a high-level nParticle decomposition which will allocate IO blocks via the
@@ -2922,6 +2935,9 @@ end subroutine empty_list_particlelists!}}}
       !-----------------------------------------------------------------
       integer :: i, allerr=0
 
+      ! handle case of no particle on list
+      if(.not.associated(particlelists)) return
+
       ! now get number of particles in each list
       ! for each entry in list of particlelist
       nPartList = -1
@@ -2961,9 +2977,10 @@ end subroutine empty_list_particlelists!}}}
      character (len=StrKIND) :: message
 
      numProcs = size(procNeighs)
+     !if (numProcs == 0) return
 
      ! set to be -1 for error catching
-     nPartRecv = -1
+     if (associated(nPartRecv)) nPartRecv = -1
 
      ! want to send individual values in nPartSend to each entry in procNeighs (paired data)
      ! values obtained after communication are to be stored in nPartRecv
@@ -3086,6 +3103,10 @@ subroutine allocate_list_particlelists(nPart, listPL) !{{{
 
   integer :: nProcs, i
 
+  ! case of no particles to be transfered
+  if (.not.associated(nPart)) return
+
+  ! case with particles to be transfered
   nProcs = size(nPart)
 
   ! allocate size of particeLists
@@ -3121,6 +3142,9 @@ end subroutine allocate_list_particlelists !}}}
      type (mpas_particle_type), pointer :: particle
      type (mpas_pool_type), pointer :: lagrPartTrackPool
      integer, pointer :: blockNum
+
+     ! handle the case where there isn't a list to send
+     if (.not.associated(listPL)) return
 
      ! need to copy pointers to particles from each entry of the listPL and move the
      ! particle to the appropriate block
@@ -3506,7 +3530,12 @@ end subroutine allocate_list_particlelists !}}}
      type (array1DReal_list), dimension(:), pointer :: array1DRealSend, array1DRealRecv
      character (len=StrKIND) :: message
 
+
+     numProcs = size(procNeighs)
+
      ! for each entry in the halo pool, want to send and recv the data
+     ! unless there is no data to send
+     !if (numProcs == 0) return
 
 #ifdef _MPI
      !call MPI_Barrier(domain % dminfo % comm)
@@ -3540,8 +3569,6 @@ end subroutine allocate_list_particlelists !}}}
 !     call mpas_log_write('printing particle pool contents (verify that membername consistent between processors):')
 !     call mpas_pool_print_summary(lagrPartTrackPool, mpas_pool_field, .true.)
 !#endif
-
-     numProcs = size(procNeighs)
 
      numSends = 0
      do i = 1, numProcs
