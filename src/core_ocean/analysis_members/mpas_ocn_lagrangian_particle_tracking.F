@@ -19,7 +19,7 @@
 !-----------------------------------------------------------------------
 #define COMMA ,
 #ifdef MPAS_DEBUG
-#define LIGHT_DEBUG_WRITE(Z) !  print *, Z
+#define LIGHT_DEBUG_WRITE(Z)   print *, Z
 #define LIGHT_DEBUG_ALL_WRITE(Z) ! print *, Z
 #else
 #define LIGHT_DEBUG_WRITE(Z)  ! print *, Z
@@ -154,7 +154,7 @@ contains
       ! get "MPI halos" for IO communication during write and restart steps (ioBlock to currentBlocks)
       ! AllToAll Computation!
       call mpas_particle_list_build_halos(domain, err, 'currentBlock', g_ioProcNeighs)
-      LIGHT_DEBUG_WRITE('g_ioProcNeighs=' COMMA g_ioProcNeighs)
+      LIGHT_DEBUG_WRITE('size=' COMMA size(g_ioProcNeighs) COMMA 'g_ioProcNeighs=' COMMA g_ioProcNeighs )
       LIGHT_DEBUG_WRITE('finished building io halos')
 
       ! transfer particles to their appropriate blocks (currentBlock) via MPI
@@ -168,7 +168,7 @@ contains
         g_ioProcNeighs)
 #ifdef MPAS_DEBUG
       call mpas_timer_stop("trans_from_block_to_blockLPT")
-      !call MPI_Barrier(domain % dminfo % comm, err)
+      call MPI_Barrier(domain % dminfo % comm, err)
 #endif
 
       ! tests to make sure all the values are ok !{{{
@@ -1167,6 +1167,7 @@ contains
         allocate(g_compProcNeighs(size(g_compProcNeighsNearby)))
         g_compProcNeighs = g_compProcNeighsNearby
       end if
+      LIGHT_DEBUG_WRITE('in compute: g_compProcNeighsNearby=' COMMA g_compProcNeighsNearby)
       call mpas_particle_list_transfer_particles_from_block_to_named_block(domain, err, .True., .False., 'currentBlock', &
         g_compProcNeighs)
       deallocate(g_compProcNeighs)
@@ -1315,7 +1316,7 @@ contains
       ! transfer the data
       call mpas_particle_list_transfer_particles_from_block_to_named_block(domain, err, .False., .True., 'ioBlock', &
         g_ioProcNeighs)
-      deallocate(g_ioProcNeighs)
+      if (associated(g_ioProcNeighs)) deallocate(g_ioProcNeighs)
 #ifdef MPAS_DEBUG
       call mpas_timer_stop("trans_from_block_to_blockLPT")
 #endif
@@ -1401,10 +1402,10 @@ contains
         block => block %  next
       end do
 
-      deallocate(g_compProcNeighsNearby)
+      if (associated(g_compProcNeighs)) deallocate(g_compProcNeighsNearby)
 
-      LIGHT_DEBUG_WRITE('end ocn_finalize_lagrangian_particle_tracking')
       call mpas_timer_stop("finalizeLPT")
+      LIGHT_DEBUG_WRITE('end ocn_finalize_lagrangian_particle_tracking')
       !call mpas_timer_stop("totalLPT")
 
    end subroutine ocn_finalize_lagrangian_particle_tracking!}}}

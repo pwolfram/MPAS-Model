@@ -18,7 +18,7 @@
 !-----------------------------------------------------------------------
 #define COMMA ,
 #ifdef MPAS_DEBUG
-#define LIGHT_DEBUG_WRITE(Z) ! print *, Z
+#define LIGHT_DEBUG_WRITE(Z)  print *, Z
 #define LIGHT_DEBUG_ALL_WRITE(Z) ! print *, Z
 #else
 #define LIGHT_DEBUG_WRITE(Z)  ! print *, Z
@@ -554,6 +554,7 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
       ! get a complete list of the processors (including itself)
       call uniqueIntegerList(tempInt,ioProcNeighs)
       call removeValueFromIntList(ioProcNeighs, domain % dminfo % my_proc_id)
+      ! at this point, for no particles on the processor, this could be completely empty
       LIGHT_DEBUG_WRITE('ioProcNeighs = ' COMMA ioProcNeighs)
       deallocate(tempInt)
 
@@ -659,7 +660,9 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
 
 #ifdef _MPI
       ! wait until the data is in the buffer
+     LIGHT_DEBUG_WRITE('Before waitall numSends nsendProcNeighs recvRequestID')
       call MPI_WaitAll(nsendProcNeighs,recvRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall nsendProcNeighs recvRequestID')
 #endif
 
       do i = 1, nsendProcNeighs
@@ -675,7 +678,9 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
 
       ! wait to make sure (just in case) that all sends have completed
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall nsendProcNeighs sendRequestID')
       call MPI_WaitAll(nsendProcNeighs, sendRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall nsendProcNeighs sendRequestID')
 #endif
 
       ! "add" receiving and sending lists into a comple list
@@ -838,6 +843,13 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
 
      !2. communicating from processor to processor
      ! make appropriate list
+#ifdef MPAS_DEBUG
+     call MPI_Barrier(domain % dminfo % comm, err)
+#endif
+     LIGHT_DEBUG_WRITE('nPartRecv=' COMMA nPartRecv COMMA 'nPartSend=' COMMA nPartSend)
+#ifdef MPAS_DEBUG
+     call MPI_Barrier(domain % dminfo % comm, err)
+#endif
      call allocate_list_particlelists(nPartRecv, listPLRecv)
 
      ! communicate data (assumes that each processor has knowledge about construction of the pool lagrPartTrackPoolHalo,
@@ -851,7 +863,7 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
      LIGHT_DEBUG_WRITE('finished communicate_particle_halo_data')
 
      ! note that at present there is no halo data
-     LIGHT_DEBUG_WRITE('there is no halo data to transfer currently')
+     LIGHT_DEBUG_WRITE('there is no non halo data to transfer currently')
      !call mpas_timer_start("communicate_data_nonhalo_LPT")
      !if(haloOnly) then
      !  ! need to also allocate the nonHalo data somehow, it just needs initialized so that it can be "filled in" when
@@ -870,7 +882,12 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
 
      LIGHT_DEBUG_WRITE('finished distributing particlelist')
      LIGHT_DEBUG_WRITE('halo procs = ' COMMA procNeighs)
-     LIGHT_DEBUG_WRITE('nSend = ' COMMA nPartSend COMMA ' nRecv = ' COMMA nPartRecv)
+#ifdef MPAS_DEBUG
+     call MPI_Barrier(domain % dminfo % comm, err)
+     if(associated(nPartSend)) LIGHT_DEBUG_WRITE('nSend = ' COMMA nPartSend)
+     if(associated(nPartRecv)) LIGHT_DEBUG_WRITE('nRecv = ' COMMA nPartRecv)
+     call MPI_Barrier(domain % dminfo % comm, err)
+#endif
 
      ! deallocate listPLSend and listPLRecv
      if (copyOnly) then
@@ -884,9 +901,11 @@ end subroutine mpas_particle_list_destroy_particle_list !}}}
      ! just empty the list without destroying the particle data (because we need particles that were just transferred!)
      call empty_list_particlelists(listPLRecv)
 
-     deallocate(nPartSend, nPartRecv)
+     ! note, if not associated this means there are no particles on this block
+     if (associated(nPartSend)) deallocate(nPartSend)
+     if (associated(nPartRecv)) deallocate(nPartRecv)
 
-     LIGHT_DEBUG_WRITE('finished mpas_particle_list_test_num_current_particlelist')
+     LIGHT_DEBUG_WRITE('finished mpas_particle_list_transfer_particles_from_block_to_named_block')
 
    end subroutine mpas_particle_list_transfer_particles_from_block_to_named_block !}}}
 
@@ -2758,23 +2777,26 @@ end subroutine empty_list_particlelists!}}}
 
       LIGHT_DEBUG_WRITE('make_proc_to_proc_particlelists')
 
+      ! no list avaialable, can't populate it
+      if(.not.associated(interProcPLArray)) return
+
       block => domain % blocklist
       do while(associated(block))
         ! for each particle on each block
         particlelist => block % particlelist
         do while(associated(particlelist))
           LIGHT_DEBUG_ALL_WRITE('link on particlelist ' COMMA  loc(particlelist))
-#ifdef MPAS_DEBUG
+
           if(.not.associated(particlelist % particle)) then
             LIGHT_ERROR_WRITE('particle not associated!')
           end if
-#endif
+
           particle => particlelist % particle
-#ifdef MPAS_DEBUG
+
           if(.not.associated(particle % haloDataPool)) then
             LIGHT_ERROR_WRITE('particle haloDataPool not associated!')
           end if
-#endif
+
           call mpas_pool_get_array(particle % haloDataPool, blockSendToName, particleBlock)
           ! For example:
           !call mpas_pool_get_array(particle % haloDataPool, 'currentBlock', particleBlock)
@@ -2988,7 +3010,9 @@ end subroutine empty_list_particlelists!}}}
      end do
      LIGHT_DEBUG_WRITE('done with send receive calls')
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall communicate_num_particles_send_recv')
      call MPI_WaitAll(2*numProcs, requestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall communicate_num_particles_send_recv')
 #endif
 #ifdef MPAS_DEBUG
      LIGHT_DEBUG_WRITE('before 2nd barrier')
@@ -3508,6 +3532,8 @@ end subroutine allocate_list_particlelists !}}}
        end if
      end do
 
+     LIGHT_DEBUG_WRITE('numReals=' COMMA numReals COMMA 'numInts=' COMMA numInts)
+
 ! NOTE, code assumes that memberName is consistent between processors in terms of pool interation
 !#ifdef mpas_debug
 !     ! verify that membername order is the same between processors
@@ -3581,11 +3607,15 @@ end subroutine allocate_list_particlelists !}}}
      end do !}}}
 
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall numRecv real')
      call MPI_WaitAll(numRecv, recvRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall numRecv real')
 #endif
      if (mpi_ierr /= 0) call mpas_log_write('recv: mpi_ierr = %i', intArgs=(/ mpi_ierr /) )
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall numSends real')
      call MPI_WaitAll(numSends, sendRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall numSends real')
 #endif
      if (mpi_ierr /= 0) call mpas_log_write('send: mpi_ierr = %i', intArgs=(/ mpi_ierr /) )
 
@@ -3669,11 +3699,15 @@ end subroutine allocate_list_particlelists !}}}
      end do !}}}
 
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall numRecv int')
      call MPI_WaitAll(numRecv, recvRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall numRecv int')
 #endif
      if (mpi_ierr /= 0) call mpas_log_write('recv: mpi_ierr = %i', intArgs=(/ mpi_ierr /) )
 #ifdef _MPI
+     LIGHT_DEBUG_WRITE('Before waitall numSends int')
      call MPI_WaitAll(numSends, sendRequestID, MPI_STATUSES_IGNORE, mpi_ierr)
+     LIGHT_DEBUG_WRITE('After waitall numSends int')
 #endif
      if (mpi_ierr /= 0) call mpas_log_write('send: mpi_ierr = %i', intArgs=(/ mpi_ierr /) )
 
