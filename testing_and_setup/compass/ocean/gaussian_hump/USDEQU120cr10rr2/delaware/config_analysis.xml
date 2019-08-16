@@ -1,10 +1,9 @@
 <?xml version="1.0"?>
 <config case="analysis">
-	<add_link source_path="mpas_tools" source="visualization/paraview_vtk_field_extractor/paraview_vtk_field_extractor.py" dest="paraview_vtk_field_extractor.py"/>
 	<add_link source="../forward/output.nc" dest="output.nc"/>
 
 	<run_script name="run.py">
-		<step executable="./paraview_vtk_field_extractor.py">
+		<step executable="paraview_vtk_field_extractor.py">
 			<argument flag="-f">output.nc</argument>
 			<argument flag="-o">vtk_output</argument>
 			<argument flag="-v">allOnCells</argument>

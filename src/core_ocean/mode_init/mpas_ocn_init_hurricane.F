@@ -89,8 +89,9 @@ contains
     ! local variables
     integer :: iCell, k, idx, iEdge, iVertex
     real (kind=RKIND) :: dlon, dlat, dw
-    real (kind=RKIND) :: maxBottomDepth, globalMaxBottomDepth
+    real (kind=RKIND) :: maxBottomDepth, globalMaxBottomDepth, globalMinBottomDepth
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
+    real (kind=RKIND), parameter :: eps=1.0e-12
     real (kind=RKIND), parameter :: pi = 4.0_RKIND*ATAN(1.0_RKIND)
 
     ! Define config variable pointers
@@ -104,6 +105,8 @@ contains
     real (kind=RKIND), pointer :: config_hurricane_gaussian_width
     real (kind=RKIND), pointer :: config_hurricane_gaussian_amplitude
     real (kind=RKIND), pointer :: config_hurricane_gaussian_slr_amp
+    logical, pointer :: config_use_wetting_drying
+    real (kind=RKIND), pointer :: config_drying_min_cell_height
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
@@ -140,6 +143,10 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_amplitude', config_hurricane_gaussian_amplitude)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_slr_amp', config_hurricane_gaussian_slr_amp)
 
+    ! wetting and drying parameters
+    call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
+    call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
+
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
     call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
@@ -172,11 +179,33 @@ contains
     end do
     maxBottomDepth = -1.0_RKIND*maxBottomDepth
 
-    ! Enforce max bottom depth from namelist option
     call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth, globalMaxBottomDepth)
-    if (config_hurricane_max_depth < globalMaxBottomDepth) then
-       globalMaxBottomDepth = config_hurricane_max_depth
-    end if
+    ! Enforce max bottom depth from namelist option
+    !if (config_hurricane_max_depth < globalMaxBottomDepth) then
+    !   globalMaxBottomDepth = config_hurricane_max_depth
+    !end if
+
+    ! Find min bottom depth
+    maxBottomDepth = -9e10
+    block_ptr => domain % blocklist
+    do while(associated(block_ptr))
+      call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+      call mpas_pool_get_array(meshPool, 'bottomDepthObserved', bottomDepthObserved)
+
+      if (MAXVAL(bottomDepthObserved) > maxBottomDepth) then
+        maxBottomDepth = MAXVAL(bottomDepthObserved)
+      end if
+
+      block_ptr => block_ptr % next
+    end do
+    maxBottomDepth = -1.0_RKIND*maxBottomDepth
+
+    call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth, globalMinBottomDepth)
+    ! Enforce max bottom depth from namelist option
+    !if (config_hurricane_max_depth < globalMaxBottomDepth) then
+    !   globalMaxBottomDepth = config_hurricane_max_depth
+    !end if
+    write(*,*) globalMaxBottomDepth, globalMinBottomDepth
 
     !--------------------------------------------------------------------
     ! Use this section to set initial values
@@ -243,25 +272,31 @@ contains
          end do
        end if
 
+
        do iCell = 1, nCellsSolve
 
-          ! enforce minimum and maximum bottom depth
-          bottomDepth(iCell) = max(config_hurricane_min_depth, -1.0_RKIND*bottomDepthObserved(iCell))
-          bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
+          bottomDepth(iCell) = -1.0_RKIND*bottomDepthObserved(iCell)
 
-          ! Flatten out Bermuda
-          if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
-               lonCell(iCell) < (-62.0_RKIND+360.0_RKIND)*pi/180.0_RKIND)  .and. &
-              (latCell(iCell) >  30.0_RKIND*pi/180.0_RKIND .and. &
-               latCell(iCell) <  34.0_RKIND*pi/180.0_RKIND)) then
+          !! enforce minimum and maximum bottom depth
+          !bottomDepth(iCell) = max(config_hurricane_min_depth, -1.0_RKIND*bottomDepthObserved(iCell))
+          !bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
 
-            bottomDepth(iCell) = globalMaxBottomDepth
-          end if
+          !! Flatten out Bermuda
+          !if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
+          !     lonCell(iCell) < (-62.0_RKIND+360.0_RKIND)*pi/180.0_RKIND)  .and. &
+          !    (latCell(iCell) >  30.0_RKIND*pi/180.0_RKIND .and. &
+          !     latCell(iCell) <  34.0_RKIND*pi/180.0_RKIND)) then
+
+          !  bottomDepth(iCell) = globalMaxBottomDepth
+          !end if
 
           ! Set up vertical grid
           maxLevelCell(iCell) = nVertLevels
-          if (nVertLevels > 10) then
-            ! z-star
+          ! ensures only 3 layers can be obtained on mesh
+          if (bottomDepth(iCell) < 0 .or. bottomDepth(iCell) < refBottomDepth(3)) then
+            maxLevelCell(iCell) = 3
+          else
+            ! snap to zstar coordinate
             do k = 1, nVertLevels
               if (bottomDepth(iCell) < refBottomDepth(k)) then
                 maxLevelCell(iCell) = k-1
@@ -269,21 +304,48 @@ contains
                 exit
               end if
             end do
-            do k = 1, nVertLevels
-              layerThickness(k,iCell) = globalMaxBottomDepth * (interfaceLocations(k+1) - interfaceLocations(k))
-            end do
+          end if
+        end do
+
+        do iCell = 1, nCellsSolve
+
+          ! make sure depth is thick enough via ssh = TOTAL_DEPTH - bottomDepth
+          if (config_use_wetting_drying) then
+            ssh(iCell) = max(ssh(iCell) + bottomDepth(iCell), &
+              maxLevelCell(iCell)*(config_drying_min_cell_height + eps)) - bottomDepth(iCell)
           else
-            ! impermeable layers
-            do k = 1, nVertLevels
-              layerThickness(k,iCell) = bottomDepth(iCell)/real(nVertLevels,RKIND)
-            end do
+            config_drying_min_cell_height = 0.0_RKIND
           end if
 
-          ! set layer thicknesses
-          do k = 1, nVertLevels
-            restingThickness(k, iCell) = layerThickness(k, iCell)
+          do k = 1, maxLevelCell(iCell)
+            ! z-star
+            layerThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
+              (ssh(iCell) + bottomDepth(iCell))/maxLevelCell(iCell))
+            if (layerThickness(k,iCell) < config_drying_min_cell_height) then
+              call mpas_log_write('layerThickness($i,$i)=$r', MPAS_LOG_CRIT, &
+                intArgs=(/k,iCell/), &
+                realArgs=(/layerThickness(k,iCell)/))
+            end if
           end do
 
+          do k = 1, maxLevelCell(iCell)
+            restingThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
+              bottomDepth(iCell)/maxLevelCell(iCell))
+          end do
+        end do
+
+        ! shift coordinates
+        do k = 1, nVertLevels
+          refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
+          refZMid(k) = refZMid(k) + globalMinBottomDepth
+        end do
+        do iCell = 1, nCellsSolve
+          bottomDepth(iCell) = bottomDepth(iCell) - globalMinBottomDepth
+          ssh(iCell) = ssh(iCell) + globalMinBottomDepth
+        end do
+
+
+        do iCell = 1, nCellsSolve
           ! Set temperature
           idx = index_temperature
           do k = 1, nVertLevels
