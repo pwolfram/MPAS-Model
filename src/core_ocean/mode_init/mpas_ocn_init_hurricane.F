@@ -74,6 +74,7 @@ contains
   subroutine ocn_init_setup_hurricane(domain, iErr)!{{{
 
     !--------------------------------------------------------------------
+    implicit none
 
     type (domain_type), intent(inout) :: domain
     integer, intent(out) :: iErr
@@ -98,11 +99,11 @@ contains
     real (kind=RKIND), pointer :: config_hurricane_min_depth
     real (kind=RKIND), pointer :: config_hurricane_max_depth
     logical, pointer :: config_hurricane_use_gaussian_hump
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_lon_center
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_lat_center
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_width
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_amplitude
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_slr_amp
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_lon_center
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_lat_center
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_width
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_amplitude
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_slr_amp
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
@@ -133,11 +134,11 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_max_depth', config_hurricane_max_depth)
 
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_use_gaussian_hump', config_hurricane_use_gaussian_hump)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_lon_center', config_hurricane_gaussian_hump_lon_center)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_lat_center', config_hurricane_gaussian_hump_lat_center)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_width', config_hurricane_gaussian_hump_width)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_amplitude', config_hurricane_gaussian_hump_amplitude)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_slr_amp', config_hurricane_gaussian_hump_slr_amp)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lon_center', config_hurricane_gaussian_lon_center)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lat_center', config_hurricane_gaussian_lat_center)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_width', config_hurricane_gaussian_width)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_amplitude', config_hurricane_gaussian_amplitude)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_slr_amp', config_hurricane_gaussian_slr_amp)
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
@@ -228,12 +229,12 @@ contains
        ! Set ssh
        if (config_hurricane_use_gaussian_hump) then
          do iCell = 1, nCellsSolve
-           dlat = latCell(iCell) - config_hurricane_gaussian_hump_lat_center*pii/180.0_RKIND
-           dlon = abs(lonCell(iCell) - config_hurricane_gaussian_hump_lon_center*pii/180.0_RKIND)
-           dw = config_hurricane_gaussian_hump_width*pii/180.0_RKIND
+           dlat = latCell(iCell) - config_hurricane_gaussian_lat_center*pii/180.0_RKIND
+           dlon = abs(lonCell(iCell) - config_hurricane_gaussian_lon_center*pii/180.0_RKIND)
+           dw = config_hurricane_gaussian_width*pii/180.0_RKIND
            if (dlon > pii) dlon = dlon - 2.0_RKIND**pii
-           ssh(iCell) = config_hurricane_gaussian_hump_slr_amp + &
-             config_hurricane_gaussian_hump_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
+           ssh(iCell) = config_hurricane_gaussian_slr_amp + &
+             config_hurricane_gaussian_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
              (2.0_RKIND*dw**2.0_RKIND))
          end do
        else
