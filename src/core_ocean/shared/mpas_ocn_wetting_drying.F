@@ -171,7 +171,7 @@ contains
 
       if ( err > 0) then
         ! end the simulation if layerThickness constraint is violated
-        call mpas_log_write( 'Done, some cells are have dried.')
+        call mpas_log_write( 'Done, some cells have dried.')
         flush(debugUnit)
         close(debugUnit)
         call mpas_release_unit(debugUnit)
