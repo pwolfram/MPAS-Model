@@ -115,6 +115,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessNew
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessTend
+      real (kind=RKIND), dimension(:), pointer :: lonCell, latCell
       real (kind=RKIND) :: minThickness, layerThick
       character (len=StrKIND) :: debugFilename
       character (len=StrKIND), pointer :: config_time_integrator
@@ -137,6 +138,8 @@ contains
       call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, 2)
       call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
       call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
+      call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+      call mpas_pool_get_array(meshPool, 'latCell', latCell)
 
       err = 0
 
@@ -161,8 +164,8 @@ contains
               open(unit=debugUnit, file=debugFilename, form='formatted', status='unknown')
             end if
             err = iCell
-            write(debugUnit, '(A, I5, A, I5, A, ES14.7, A)') 'ERROR: layerThickness too small at iCell=', iCell, &
-                             ', k=', k, ' with thickness of ', layerThick , '.'
+            write(debugUnit, '(A, I5, A, ES14.7, A, ES14.7, A, I5, A, ES14.7, A)') 'ERROR: layerThickness too small at iCell=', iCell, &
+                             ', lon= ', lonCell(iCell), ', lat= ', latCell(iCell), ', k=', k, ' with thickness of ', layerThick , '.'
           end if
         end do
       end do
