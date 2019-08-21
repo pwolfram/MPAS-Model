@@ -308,13 +308,14 @@ contains
           end if
         end do
 
+        ! shift coordinates
+        do k = 1, nVertLevels
+          refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
+          !refZMid(k) = refZMid(k) + globalMinBottomDepth
+        end do
+
         do iCell = 1, nCellsSolve
 
-          ! shift coordinates
-          do k = 1, nVertLevels
-            refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
-            !refZMid(k) = refZMid(k) + globalMinBottomDepth
-          end do
           bottomDepth(iCell) = bottomDepth(iCell) - globalMinBottomDepth
           ssh(iCell) = ssh(iCell) + globalMinBottomDepth
 
