@@ -16,7 +16,7 @@
 		<option name="config_hurricane_use_gaussian_hump">.true.</option>
 		<option name="config_hurricane_gaussian_width">0.25</option>
 		<option name="config_use_wetting_drying">.true.</option>
-		<option name="config_drying_min_cell_height">0.10001</option>
+		<option name="config_drying_min_cell_height">0.010001</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">

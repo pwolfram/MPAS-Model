@@ -248,7 +248,8 @@ contains
 
        do k = 1, nVertLevels
           refBottomDepth(k) = globalMaxBottomDepth * interfaceLocations(k+1)
-          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * globalMaxBottomDepth
+          !refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * globalMaxBottomDepth
+          refZMid(k) = 0.0_RKIND
        end do
 
        ! Set vertCoordMovementWeights
@@ -277,9 +278,9 @@ contains
 
           bottomDepth(iCell) = -1.0_RKIND*bottomDepthObserved(iCell)
 
-          !! enforce minimum and maximum bottom depth
+          ! enforce minimum and maximum bottom depth
+          bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
           !bottomDepth(iCell) = max(config_hurricane_min_depth, -1.0_RKIND*bottomDepthObserved(iCell))
-          !bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
 
           !! Flatten out Bermuda
           !if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
@@ -309,16 +310,24 @@ contains
 
         do iCell = 1, nCellsSolve
 
+          ! shift coordinates
+          do k = 1, nVertLevels
+            refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
+            !refZMid(k) = refZMid(k) + globalMinBottomDepth
+          end do
+          bottomDepth(iCell) = bottomDepth(iCell) - globalMinBottomDepth
+          ssh(iCell) = ssh(iCell) + globalMinBottomDepth
+
           ! make sure depth is thick enough via ssh = TOTAL_DEPTH - bottomDepth
           if (config_use_wetting_drying) then
-            ssh(iCell) = max(ssh(iCell) + bottomDepth(iCell), &
-              maxLevelCell(iCell)*(config_drying_min_cell_height + eps)) - bottomDepth(iCell)
+            ssh(iCell) = - bottomDepth(iCell) + &
+              max(ssh(iCell) + bottomDepth(iCell), &
+                  maxLevelCell(iCell)*(config_drying_min_cell_height + eps))
           else
             config_drying_min_cell_height = 0.0_RKIND
           end if
 
           do k = 1, maxLevelCell(iCell)
-            ! z-star
             layerThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
               (ssh(iCell) + bottomDepth(iCell))/maxLevelCell(iCell))
             if (layerThickness(k,iCell) < config_drying_min_cell_height) then
@@ -329,19 +338,10 @@ contains
           end do
 
           do k = 1, maxLevelCell(iCell)
-            restingThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
-              bottomDepth(iCell)/maxLevelCell(iCell))
+            !restingThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
+            !  bottomDepth(iCell)/maxLevelCell(iCell))
+            restingThickness(k,iCell) = bottomDepth(iCell)/maxLevelCell(iCell)
           end do
-        end do
-
-        ! shift coordinates
-        do k = 1, nVertLevels
-          refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
-          refZMid(k) = refZMid(k) + globalMinBottomDepth
-        end do
-        do iCell = 1, nCellsSolve
-          bottomDepth(iCell) = bottomDepth(iCell) - globalMinBottomDepth
-          ssh(iCell) = ssh(iCell) + globalMinBottomDepth
         end do
 
 
