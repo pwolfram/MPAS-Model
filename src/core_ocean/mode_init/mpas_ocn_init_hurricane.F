@@ -103,7 +103,7 @@ contains
     real (kind=RKIND), pointer :: config_hurricane_gaussian_lon_center
     real (kind=RKIND), pointer :: config_hurricane_gaussian_lat_center
     real (kind=RKIND), pointer :: config_hurricane_gaussian_width
-    real (kind=RKIND), pointer :: config_hurricane_gaussian_amplitude
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_amplitude
     real (kind=RKIND), pointer :: config_hurricane_gaussian_slr_amp
     logical, pointer :: config_use_wetting_drying
     real (kind=RKIND), pointer :: config_drying_min_cell_height
@@ -140,7 +140,7 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lon_center', config_hurricane_gaussian_lon_center)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lat_center', config_hurricane_gaussian_lat_center)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_width', config_hurricane_gaussian_width)
-    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_amplitude', config_hurricane_gaussian_amplitude)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_amplitude', config_hurricane_gaussian_hump_amplitude)
     call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_slr_amp', config_hurricane_gaussian_slr_amp)
 
     ! wetting and drying parameters
@@ -264,7 +264,7 @@ contains
            dw = config_hurricane_gaussian_width*pii/180.0_RKIND
            if (dlon > pii) dlon = dlon - 2.0_RKIND**pii
            ssh(iCell) = config_hurricane_gaussian_slr_amp + &
-             config_hurricane_gaussian_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
+             config_hurricane_gaussian_hump_amplitude * exp(-(dlat**2.0_RKIND + dlon**2.0_RKIND) / &
              (2.0_RKIND*dw**2.0_RKIND))
          end do
        else
