@@ -427,7 +427,7 @@ contains
           end do
 
           ! if layer thickness is too small, limit divergence flux outwards with opposite velocity
-          if ((layerThickness + dt*divOutFlux ) <= (config_drying_min_cell_height))  then
+          if ((layerThickness + dt*divOutFlux ) <= (config_drying_min_cell_height + 100.0*eps))  then
             ! limit divOutFlux out of cell to keep it wet
             divOutFlux = abs(divOutFlux)
             divOutFlux = (layerThickness - (config_drying_min_cell_height + eps)) / (dt*divOutFlux + eps)
