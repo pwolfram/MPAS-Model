@@ -15,7 +15,7 @@
 		<option name="config_dt">'00:00:30'</option>
 		<option name="config_btr_dt">'0000_00:00:03'</option>
 -->
-		<option name="config_dt">'00:00:10'</option>
+		<option name="config_dt">'00:00:25'</option>
 		<option name="config_time_integrator">'RK4'</option>
 		<option name="config_hmix_scaleWithMesh">.true.</option>
 		<option name="config_mom_del4">4.0e8</option>
