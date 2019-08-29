@@ -280,16 +280,8 @@ contains
 
           ! enforce minimum and maximum bottom depth
           bottomDepth(iCell) = min(bottomDepth(iCell),globalMaxBottomDepth)
-          !bottomDepth(iCell) = max(config_hurricane_min_depth, -1.0_RKIND*bottomDepthObserved(iCell))
-
-          !! Flatten out Bermuda
-          !if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
-          !     lonCell(iCell) < (-62.0_RKIND+360.0_RKIND)*pi/180.0_RKIND)  .and. &
-          !    (latCell(iCell) >  30.0_RKIND*pi/180.0_RKIND .and. &
-          !     latCell(iCell) <  34.0_RKIND*pi/180.0_RKIND)) then
-
-          !  bottomDepth(iCell) = globalMaxBottomDepth
-          !end if
+          ! clipping top elevation criterion below has bug...
+          !bottomDepth(iCell) = max(config_hurricane_min_depth, bottomDepth(iCell))
 
           ! Set up vertical grid
           maxLevelCell(iCell) = nVertLevels
