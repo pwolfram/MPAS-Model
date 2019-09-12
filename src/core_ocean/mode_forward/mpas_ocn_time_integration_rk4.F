@@ -232,7 +232,7 @@ module ocn_time_integration_rk4
 
          call mpas_pool_create_pool(provisStatePool)
          call mpas_pool_clone_pool(statePool, provisStatePool, 1)
-         call mpas_pool_add_subpool(block % structs, 'provis_state', provisStatePool)
+         call mpas_pool_destroy_pool(provisStatePool)
 
          call mpas_threading_barrier()
 
@@ -241,25 +241,7 @@ module ocn_time_integration_rk4
 
       call mpas_threading_barrier()
 
-      block => domain % blocklist
-      do while(associated(block))
-         call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
-
-         call mpas_pool_remove_subpool(block % structs, 'provis_state')
-
-         call mpas_pool_destroy_pool(provisStatePool)
-
-         block => block % next
-      end do
-      call mpas_threading_barrier()
-
    end subroutine ocn_time_integrator_rk4!}}}
-
-
-
-
-
-
 
 
 end module ocn_time_integration_rk4
