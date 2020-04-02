@@ -8,6 +8,8 @@
 		<option name="config_dt">'00:00:40'</option>
 		<option name="config_btr_dt">'0000_00:00:04'</option>
 
+		<option name="config_pressure_gradient_type">'ssh_gradient'</option>
+
 		<option name="config_hmix_scaleWithMesh">.true.</option>
 		<option name="config_mom_del4">4.0e8</option>
 		<option name="config_use_mom_del4">.true.</option>
