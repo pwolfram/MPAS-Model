@@ -48,6 +48,11 @@
 				<member name="vertCoordMovementWeights" type="var"/>
 				<member name="ssh" type="var"/>
 				<member name="bottomDrag" type="var"/>
+				<member name="rx1Cell" type="var"/>
+				<member name="rx1Edge" type="var"/>
+				<member name="rx1MaxCell" type="var"/>
+				<member name="rx1MaxEdge" type="var"/>
+				<member name="globalRx1Max" type="var"/>
 			</add_contents>
 		</stream>
 	</streams>

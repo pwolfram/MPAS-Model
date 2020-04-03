@@ -259,6 +259,7 @@ contains
 
        call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
+       !call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid, 1)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
 
        if (config_use_wetting_drying) then
@@ -318,7 +319,7 @@ contains
                 if (bottomDepth(iCell) < refBottomDepth(k)) then
                   maxLevelCell(iCell) = k-1
                   ! don't need to snap to the coordinate
-                  !bottomDepth(iCell) = refBottomDepth(k-1)
+                  bottomDepth(iCell) = refBottomDepth(k-1)
                   exit
                 end if
               end do
@@ -336,8 +337,10 @@ contains
               maxLevelCell(iCell)*(config_drying_min_cell_height + eps))
 
             do k = 1, maxLevelCell(iCell)
+              layerThickness(k,iCell) = abs((config_hurricane_max_depth - config_hurricane_min_depth) * &
+                                        (interfaceLocations(k+1) - interfaceLocations(k)))
               layerThickness(k,iCell) = max(config_drying_min_cell_height + eps, &
-                (ssh(iCell) + bottomDepth(iCell))/maxLevelCell(iCell))
+                layerThickness(k,iCell))
               if (layerThickness(k,iCell) < config_drying_min_cell_height) then
                 call mpas_log_write('layerThickness($i,$i)=$r', MPAS_LOG_CRIT, &
                   intArgs=(/k,iCell/), &
@@ -350,8 +353,8 @@ contains
             ssh(iCell) = ssh(iCell) - globalMinBottomDepth
 
             do k = 1, maxLevelCell(iCell)
-              restingThickness(k,iCell) = bottomDepth(iCell)/maxLevelCell(iCell)
-              !restingThickness(k,iCell) = layerThickness(k,iCell)
+              !restingThickness(k,iCell) = bottomDepth(iCell)/maxLevelCell(iCell)
+              restingThickness(k,iCell) = layerThickness(k,iCell)
             end do
 
           end do
@@ -435,6 +438,9 @@ contains
 
        block_ptr => block_ptr % next
     end do
+
+    ! verify that slopes and thicknesses are reasonable
+    call ocn_compute_Haney_number(domain, iErr)
 
     deallocate(interfaceLocations)
     !--------------------------------------------------------------------

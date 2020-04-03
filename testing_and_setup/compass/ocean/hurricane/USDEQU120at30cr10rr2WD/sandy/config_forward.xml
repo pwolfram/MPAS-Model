@@ -11,8 +11,8 @@
 		<template file="maxwaterlevel_template.xml" path_base="script_configuration_dir"/>
 
 		<option name="config_time_integrator">'RK4'</option>
-		<option name="config_dt">'00:00:25'</option>
-		<option name="config_mom_del4">4.0e8</option>
+		<option name="config_dt">'00:00:20'</option>
+		<option name="config_mom_del4">4.0e7</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
