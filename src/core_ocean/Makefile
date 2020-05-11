@@ -2,9 +2,9 @@
 
 
 OCEAN_SHARED_INCLUDES = -I$(PWD)/../framework -I$(PWD)/../external/esmf_time_f90 -I$(PWD)/../operators
-OCEAN_SHARED_INCLUDES += -I$(PWD)/BGC -I$(PWD)/shared -I$(PWD)/analysis_members -I$(PWD)/cvmix/src/shared -I$(PWD)/mode_forward -I$(PWD)/mode_analysis -I$(PWD)/mode_init
+OCEAN_SHARED_INCLUDES += -I$(PWD)/BGC -I$(PWD)/shared -I$(PWD)/analysis_members -I$(PWD)/cvmix/src/shared -I$(PWD)/gotm/build -I$(PWD)/mode_forward -I$(PWD)/mode_analysis -I$(PWD)/mode_init
 
-all: shared libcvmix analysis_members libBGC
+all: shared libcvmix analysis_members libBGC libgotm
 	(cd mode_forward; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_analysis; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_init; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
@@ -59,11 +59,18 @@ libBGC:
 		(echo "Missing core_ocean/BGC/.git, did you forget to 'git submodule update --init --recursive' ?"; exit 1) \
 	fi
 
-shared: libcvmix libBGC
+libgotm:
+	if [ -e gotm/.git ]; then \
+		(mkdir gotm/build; cd gotm/build; cmake ../src -DGOTM_BUILD_LIBRARIES_ONLY=true -DGOTM_USE_FABM=false -DGOTM_USE_NetCDF=false -DCMAKE_Fortran_COMPILER="$(FC)" -DCMAKE_Fortran_FLAGS="$(FCFLAGS)"; make) \
+	else \
+		(pwd ; echo "Missing core_ocean/gotm/.git, did you forget to 'git submodule update --init --recursive' ?"; exit 1) \
+	fi
+
+shared: libcvmix libBGC libgotm
 	(cd shared; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)")
 
-analysis_members: libcvmix shared
-	( cd analysis_members; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" CPPFLAGS="$(CPPFLAGS)" CPPINCLUDES="$(CPPINCLUDES)" all ) 
+analysis_members: libcvmix shared libgotm
+	( cd analysis_members; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" CPPFLAGS="$(CPPFLAGS)" CPPINCLUDES="$(CPPINCLUDES)" all )
 
 clean:
 	if [ -e cvmix/.git ]; then \
@@ -74,6 +81,9 @@ clean:
 	fi
 	if [ -e BGC/.git ]; then \
 		(cd BGC; make clean) \
+	fi
+	if [ -e gotm/.git ]; then \
+		($(RM) -r gotm/build) \
 	fi
 	(cd mode_forward; $(MAKE) clean)
 	(cd mode_analysis; $(MAKE) clean)
