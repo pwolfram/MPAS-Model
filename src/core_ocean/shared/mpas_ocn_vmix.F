@@ -32,6 +32,7 @@ module ocn_vmix
    use ocn_vmix_coefs_tanh
    use ocn_vmix_coefs_rich
    use ocn_vmix_cvmix
+   use ocn_vmix_gotm
    use ocn_vmix_coefs_redi
 
    implicit none
@@ -132,7 +133,7 @@ contains
       !
       !-----------------------------------------------------------------
 
-      integer :: err1, err2, err3, err4, err5
+      integer :: err1, err2, err3, err4, err5, err6
       integer :: timeLevel
 
       integer :: iEdge, iCell, nEdges, nCells
@@ -180,9 +181,10 @@ contains
       call ocn_vmix_coefs_tanh_build(meshPool, statePool, diagnosticsPool, err2, timeLevel)
       call ocn_vmix_coefs_rich_build(meshPool, statePool, diagnosticsPool, scratchPool, err3, timeLevel)
       call ocn_vmix_coefs_cvmix_build(meshPool, statePool, forcingPool, diagnosticsPool, err4, timeLevel)
-      call ocn_vmix_coefs_redi_build(meshPool, statePool, diagnosticsPool, err5, timeLevel)
+      call ocn_vmix_coefs_gotm_build(meshPool, statePool, forcingPool, diagnosticsPool, err5, timeLevel)
+      call ocn_vmix_coefs_redi_build(meshPool, statePool, diagnosticsPool, err6, timeLevel)
 
-      err = ior(ior(ior(err1, ior(err2, err3)), err4), err5)
+      err = ior(ior(ior(ior(err1, ior(err2, err3)), err4), err5), err6)
 
    !--------------------------------------------------------------------
 
@@ -1229,6 +1231,8 @@ contains
       call ocn_vmix_coefs_rich_init(err_tmp)
       err = ior(err, err_tmp)
       call ocn_vmix_cvmix_init(domain,err_tmp)
+      err = ior(err, err_tmp)
+      call ocn_vmix_gotm_init(domain,err_tmp)
       err = ior(err, err_tmp)
       call ocn_vmix_coefs_redi_init(err_tmp)
       err = ior(err, err_tmp)

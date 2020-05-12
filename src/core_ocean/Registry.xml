@@ -659,6 +659,12 @@
 					possible_values="NONE, LWF16, LF17, RWHGK16"
 		/>
 	</nml_record>
+	<nml_record name="gotm" mode="forward">
+		<nml_option name="config_use_gotm" type="logical" default_value=".false." units="NA"
+					description="If true, use the General Ocean Turbulence Model routines to compute vertical diffusivity and viscosity"
+					possible_values="True or False"
+		/>
+	</nml_record>
 	<nml_record name="vmix_const" mode="forward">
 		<nml_option name="config_use_const_visc" type="logical" default_value=".false." units="unitless"
 					description="If true, constant vertical viscosity is included in the momentum equation"
