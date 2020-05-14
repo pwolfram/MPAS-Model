@@ -144,7 +144,8 @@ contains
       integer :: i, iCell, iEdge, k, ki, timeLevel, nCells
 
       real (kind=RKIND) :: invAreaCell, factor, delU2
-      real (kind=RKIND), dimension(:), allocatable :: shearSquaredTop, NSquaredTop
+      real (kind=RKIND), dimension(:), allocatable :: &
+        shearSquaredTop, NSquaredTop, hLayer
 
       !-----------------------------------------------------------------
       !
@@ -272,16 +273,20 @@ contains
       ! allocate squared shear and buoyancy frequencies
       allocate(shearSquaredTop(nVertLevelsP1))
       allocate(NSquaredTop(nVertLevelsP1))
+      allocate(hLayer(nVertLevelsP1))
 
       call mpas_timer_start('gotm cell loop', .false.)
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
 
-         ! compute shear frequency squared and buoyancy frequency squared
-         ! TODO: use KE conserving shear following Burchard et al., 2002? <20200514, Qing Li> !
+         ! initialize arrays
          shearSquaredTop = 0.0_RKIND
          NSquaredTop = 0.0_RKIND
+         hLayer = 0.0_RKIND
+
+         ! compute shear frequency squared
+         ! TODO: use KE conserving shear following Burchard (2002)? <20200514, Qing Li> !
          invAreaCell = 1.0_RKIND / areaCell(iCell)
          do k=2,maxLevelCell(iCell)
             do i = 1, nEdgesOnCell(iCell)
@@ -291,8 +296,19 @@ contains
                shearSquaredTop(k) = shearSquaredTop(k) + factor * delU2
             enddo
             shearSquaredTop(k) = shearSquaredTop(k) / (zMid(k-1,iCell) - zMid(k,iCell))**2
-            NSquaredTop(k) = BruntVaisalaFreqTop(k,iCell)
          end do
+         shearSquaredTop(1) = shearSquaredTop(2)
+         shearSquaredTop(maxLevelCell(iCell)+1) = shearSquaredTop(maxLevelCell(iCell))
+
+         ! fill arrays of the squared buoyancy frequency and layer thickness
+         do k = 1, maxLevelCell(iCell)
+            NSquaredTop(k) = BruntVaisalaFreqTop(k,iCell)
+            hLayer(k) = layerThickness(k,iCell)
+         enddo
+
+         ! fill the bottom values -- GOTM requires size of nlev+1 for both arrays
+         NSquaredTop(maxLevelCell(iCell)+1) = NSquaredTop(maxLevelCell(iCell))
+         hLayer(maxLevelCell(iCell)+1) = hLayer(maxLevelCell(iCell))
 
          ! fill GOTM arrays with current values at iCell
          do k = 0, maxLevelCell(iCell)
@@ -322,6 +338,8 @@ contains
          !   SS            : shear-frequency squared (1/s^2)
          !   xP (optional) : extra TKE production due to, e.g., seagrass (m^2/s^3)
          !
+         ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
+         !
          call do_turbulence(maxLevelCell(iCell),                                 &
                             dt,                                                  &
                             bottomDepth(iCell),                                  &
@@ -329,7 +347,7 @@ contains
                             0.0_RKIND,                                           &
                             0.02_RKIND,                                          &
                             0.0015_RKIND,                                        &
-                            layerThickness(maxLevelCell(iCell):1:-1,iCell),      &
+                            hLayer(maxLevelCell(iCell)+1:1:-1),                  &
                             NSquaredTop(maxLevelCell(iCell)+1:1:-1),             &
                             shearSquaredTop(maxLevelCell(iCell)+1:1:-1))
          ! TODO: use zero bottom friction and predefined surface/bottom roughness length for testing (may be a lower estimate) <20200512, Qing Li> !
@@ -356,6 +374,7 @@ contains
 
       deallocate(shearSquaredTop)
       deallocate(NSquaredTop)
+      deallocate(hLayer)
 
    !--------------------------------------------------------------------
 
