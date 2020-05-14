@@ -128,7 +128,7 @@ contains
       integer, dimension(:,:), pointer :: edgesOnCell
 
       real (kind=RKIND), dimension(:), pointer :: &
-        bottomDepth, surfaceBuoyancyForcing, surfaceFrictionVelocity, &
+        bottomDepth, surfaceFrictionVelocity, &
         dcEdge, dvEdge, areaCell
 
       real (kind=RKIND), dimension(:,:), pointer :: &
@@ -138,8 +138,6 @@ contains
         gotmTKETopOfCellCur, gotmDissTopOfCellCur, gotmLengthTopOfCellCur, &
         gotmVertViscTopOfCellNew, gotmVertDiffTopOfCellNew, &
         gotmTKETopOfCellNew, gotmDissTopOfCellNew, gotmLengthTopOfCellNew
-
-      real (kind=RKIND), dimension(:,:,:), pointer :: vertNonLocalFlux
 
       integer :: i, iCell, iEdge, k, ki, timeLevel, nCells
 
@@ -202,7 +200,6 @@ contains
       ! set pointers for fields related forcing at ocean surface
       !
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFrictionVelocity', surfaceFrictionVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceBuoyancyForcing', surfaceBuoyancyForcing)
 
       !
       ! set pointer for z at the midpoint of vertical grid
@@ -214,11 +211,6 @@ contains
       !
       call mpas_pool_get_array(diagnosticsPool, 'vertViscTopOfCell', vertViscTopOfCell)
       call mpas_pool_get_array(diagnosticsPool, 'vertDiffTopOfCell', vertDiffTopOfCell)
-
-      !
-      ! set pointers for nonlocal flux
-      !
-      call mpas_pool_get_array(diagnosticsPool, 'vertNonLocalFlux', vertNonLocalFlux)
 
       !
       ! set pointers for GOTM viscosity/diffusivity, TKE, rate of dissipation and turbulent length scale
@@ -241,7 +233,6 @@ contains
       do iCell = 1, nCells
          vertViscTopOfCell(:, iCell) = 0.0_RKIND
          vertDiffTopOfCell(:, iCell) = 0.0_RKIND
-         vertNonLocalFlux(:, :, iCell) = 0.0_RKIND
       end do
       !$omp end do
 
