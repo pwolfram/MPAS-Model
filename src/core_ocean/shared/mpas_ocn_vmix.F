@@ -974,6 +974,7 @@ contains
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop
       integer, dimension(:,:), pointer :: cellsOnEdge
       logical, pointer :: config_use_cvmix,config_compute_active_tracer_budgets
+      logical, pointer :: config_use_gotm
       logical, pointer :: config_cvmix_kpp_nonlocal_with_implicit_mix
       logical, pointer :: config_Rayleigh_friction, config_Rayleigh_bottom_friction, &
                           config_Rayleigh_damping_depth_variable
@@ -997,6 +998,7 @@ contains
 
       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceFlux', tracersSurfaceFluxPool)
       call mpas_pool_get_config(ocnConfigs, 'config_use_cvmix', config_use_cvmix)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_gotm', config_use_gotm)
       call mpas_pool_get_config(ocnConfigs, 'config_cvmix_kpp_nonlocal_with_implicit_mix', &
                                 config_cvmix_kpp_nonlocal_with_implicit_mix)
       call mpas_pool_get_config(ocnConfigs, 'config_compute_active_tracer_budgets',  &
@@ -1058,6 +1060,24 @@ contains
          end do
          !$omp end do
          call mpas_timer_stop('CVMix avg')
+      endif
+
+      ! if using GOTM, then viscosity has to be averaged from cell centers to cell edges
+      if ( config_use_gotm ) then
+
+         nEdges = nEdgesArray( 1 )
+         call mpas_timer_start('GOTM avg', .false.)
+         !$omp do schedule(runtime) private(cell1, cell2, k)
+         do iEdge=1,nEdges
+            vertViscTopOfEdge(:, iEdge) = 0.0_RKIND
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            do k=1,maxLevelEdgeTop(iEdge)
+               vertViscTopOfEdge(k,iEdge) = 0.5_RKIND*(vertViscTopOfCell(k,cell2)+vertViscTopOfCell(k,cell1))
+            end do
+         end do
+         !$omp end do
+         call mpas_timer_stop('GOTM avg')
       endif
 
       !
