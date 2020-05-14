@@ -2122,6 +2122,27 @@
 			description="The effective ocean density within ice shelves based on Archimedes' principle."
 			packages="landIceCouplingPKG"
 		/>
+        <!-- FIELDS FOR GOTM -->
+		<var name="gotmVertViscTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-1}"
+			 description="GOTM: vertical viscosity defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="gotmVertDiffTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-1}"
+			 description="GOTM: vertical diffusion defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="gotmTKETopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-2}"
+			 description="GOTM: turbulent kenetic energy defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="gotmDissTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-3}"
+			 description="GOTM: rate of dissipation defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="gotmLengthTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+			 description="GOTM: turbulent length scale defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
 	</var_struct>
 	<var_struct name="mesh" time_levs="1">
 		<var name="latCell" type="real" dimensions="nCells" units="radians"

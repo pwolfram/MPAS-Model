@@ -89,7 +89,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_coefs(meshPool, statePool, forcingPool, diagnosticsPool, scratchPool, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_coefs(dt, meshPool, statePool, forcingPool, diagnosticsPool, scratchPool, err, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -97,6 +97,7 @@ contains
       !
       !-----------------------------------------------------------------
 
+      real (kind=RKIND), intent(in) :: dt
       type (mpas_pool_type), intent(in) :: &
          meshPool          !< Input: mesh information
 
@@ -181,7 +182,7 @@ contains
       call ocn_vmix_coefs_tanh_build(meshPool, statePool, diagnosticsPool, err2, timeLevel)
       call ocn_vmix_coefs_rich_build(meshPool, statePool, diagnosticsPool, scratchPool, err3, timeLevel)
       call ocn_vmix_coefs_cvmix_build(meshPool, statePool, forcingPool, diagnosticsPool, err4, timeLevel)
-      call ocn_vmix_coefs_gotm_build(meshPool, statePool, forcingPool, diagnosticsPool, err5, timeLevel)
+      call ocn_vmix_coefs_gotm_build(dt, meshPool, statePool, forcingPool, diagnosticsPool, err5, timeLevel)
       call ocn_vmix_coefs_redi_build(meshPool, statePool, diagnosticsPool, err6, timeLevel)
 
       err = ior(ior(ior(ior(err1, ior(err2, err3)), err4), err5), err6)
@@ -1036,7 +1037,7 @@ contains
       call mpas_pool_get_array(forcingPool, 'bottomDrag', bottomDrag)
 
       call mpas_timer_start('vmix coefs', .false.)
-      call ocn_vmix_coefs(meshPool, statePool, forcingPool, diagnosticsPool, scratchPool, err, timeLevel)
+      call ocn_vmix_coefs(dt, meshPool, statePool, forcingPool, diagnosticsPool, scratchPool, err, timeLevel)
       call mpas_timer_stop('vmix coefs')
 
       nCells = nCellsArray(1)

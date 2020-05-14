@@ -25,7 +25,9 @@ module ocn_vmix_gotm
    use mpas_io_units
 
    use turbulence, only: init_turbulence, do_turbulence
-   use turbulence, only: gotm_vertVisc=>num, gotm_vertDiff=>nuh
+   use turbulence, only: gotm_vertVisc=>num, gotm_vertDiffT=>nuh, &
+                         gotm_vertDiffS=>nus, gotm_TKE=>tke,      &
+                         gotm_eps=>eps, gotm_L=>L
    use mtridiagonal, only: init_tridiagonal
 
    implicit none
@@ -73,7 +75,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_coefs_gotm_build(meshPool, statePool, forcingPool, diagnosticsPool, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_coefs_gotm_build(dt, meshPool, statePool, forcingPool, diagnosticsPool, err, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -81,10 +83,12 @@ contains
       !
       !-----------------------------------------------------------------
 
+      real (kind=RKIND), intent(in) :: dt !< Input: MPAS-O timestep
       type (mpas_pool_type), intent(in) :: &
          meshPool          !< Input: mesh information
 
-      integer, intent(in), optional :: timeLevelIn !< Input: time level for state pool
+      integer, intent(in), optional ::     &
+         timeLevelIn !< Input: time level for state pool
 
       !-----------------------------------------------------------------
       !
@@ -115,38 +119,32 @@ contains
       !
       !-----------------------------------------------------------------
 
+      logical, save :: first = .true.
+      integer, pointer :: nVertLevels, nVertLevelsP1
+
       integer, dimension(:), pointer :: &
-        maxLevelCell, nEdgesOnCell
+        maxLevelCell, nEdgesOnCell, nCellsArray
+
+      integer, dimension(:,:), pointer :: edgesOnCell
 
       real (kind=RKIND), dimension(:), pointer :: &
-        latCell, lonCell, bottomDepth, surfaceBuoyancyForcing, surfaceFrictionVelocity, fCell, &
-        boundaryLayerDepth, ssh, indexBoundaryLayerDepth, dcEdge, dvEdge, areaCell, iceFraction, &
-        boundaryLayerDepthSmooth, windSpeed10m
+        bottomDepth, surfaceBuoyancyForcing, surfaceFrictionVelocity, &
+        dcEdge, dvEdge, areaCell
 
       real (kind=RKIND), dimension(:,:), pointer :: &
         vertViscTopOfCell, vertDiffTopOfCell, layerThickness, &
-        zMid, zTop, density, displacedDensity, potentialDensity, &
-        bulkRichardsonNumber, RiTopOfCell, BruntVaisalaFreqTop, &
-        bulkRichardsonNumberBuoy, bulkRichardsonNumberShear, unresolvedShear, normalVelocity
+        BruntVaisalaFreqTop, normalVelocity, zMid, &
+        gotmVertViscTopOfCellCur, gotmVertDiffTopOfCellCur, &
+        gotmTKETopOfCellCur, gotmDissTopOfCellCur, gotmLengthTopOfCellCur, &
+        gotmVertViscTopOfCellNew, gotmVertDiffTopOfCellNew, &
+        gotmTKETopOfCellNew, gotmDissTopOfCellNew, gotmLengthTopOfCellNew
 
       real (kind=RKIND), dimension(:,:,:), pointer :: vertNonLocalFlux
-      integer, pointer :: index_vertNonLocalFluxTemp
-      integer, dimension(:,:), pointer :: edgesOnCell, cellsOnCell, cellMask
 
-      integer :: k, i, iCell, jCell, iNeighbor, iter, timeLevel, kIndexOBL, kav, iEdge, nCells
-      integer :: edgeCount, nEdges, topIndex, nsmooth, kpp_stage
-      integer, pointer :: nVertLevels, nVertLevelsP1
-      integer, dimension(:), pointer :: nCellsArray
-      integer, dimension(:), allocatable :: surfaceAverageIndex
+      integer :: i, iCell, iEdge, k, ki, timeLevel, nCells
 
-      real (kind=RKIND) :: r, layerSum, bulkRichardsonNumberStop, sfc_layer_depth, invAreaCell
-      real (kind=RKIND) :: normalVelocityAv, factor, delU2, areaSum, blTemp
-      real (kind=RKIND) :: sigma, turbulentScalarVelocityScalePoint
-      real (kind=RKIND), dimension(:), allocatable :: Nsqr_iface, turbulentScalarVelocityScale, &
-                                                      deltaVelocitySquared, normalVelocitySum, &
-                                                      potentialDensitySum, RiTemp
-      real (kind=RKIND), dimension(:), allocatable, target :: RiSmoothed, BVFSmoothed, OBLDepths, interfaceForcings
-      logical :: bulkRichardsonFlag
+      real (kind=RKIND) :: invAreaCell, factor, delU2
+      real (kind=RKIND), dimension(:), allocatable :: shearSquaredTop, NSquaredTop
 
       !-----------------------------------------------------------------
       !
@@ -185,15 +183,6 @@ contains
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
-      call mpas_pool_get_array(meshPool, 'cellMask', cellMask)
-
-      !
-      ! set pointers for fields related to position on sphere
-      !
-      call mpas_pool_get_array(meshPool, 'latCell', latCell)
-      call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
-      call mpas_pool_get_array(meshPool, 'fCell', fCell)
 
       !
       ! set pointers for fields related to vertical mesh
@@ -202,32 +191,11 @@ contains
       call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
 
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
-      call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel)
-
-      call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
       !
       ! set pointers for fields related ocean state
       !
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'displacedDensity', displacedDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', potentialDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumber', bulkRichardsonNumber)
-      call mpas_pool_get_array(diagnosticsPool, 'unresolvedShear', unresolvedShear)
-      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepth', boundaryLayerDepth)
-      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepthSmooth', boundaryLayerDepthSmooth)
-      call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
       call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop',BruntVaisalaFreqTop)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumberBuoy',bulkRichardsonNumberBuoy)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumberShear',bulkRichardsonNumberShear)
-      call mpas_pool_get_array(diagnosticsPool, 'indexBoundaryLayerDepth',indexBoundaryLayerDepth)
-
-      !
-      ! set pointers for fields related to ocean forcing state
-      !
-      call mpas_pool_get_array(forcingPool, 'iceFraction', iceFraction)
-      call mpas_pool_get_array(forcingPool, 'windSpeed10m', windSpeed10m)
 
       !
       ! set pointers for fields related forcing at ocean surface
@@ -236,17 +204,35 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'surfaceBuoyancyForcing', surfaceBuoyancyForcing)
 
       !
-      ! set pointers for viscosity/diffusivity and initialize to zero
+      ! set pointer for z at the midpoint of vertical grid
+      !
+      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
+
+      !
+      ! set pointers for viscosity/diffusivity
       !
       call mpas_pool_get_array(diagnosticsPool, 'vertViscTopOfCell', vertViscTopOfCell)
       call mpas_pool_get_array(diagnosticsPool, 'vertDiffTopOfCell', vertDiffTopOfCell)
 
-
       !
-      ! set pointers for nonlocal flux and initialize to zero
+      ! set pointers for nonlocal flux
       !
       call mpas_pool_get_array(diagnosticsPool, 'vertNonLocalFlux', vertNonLocalFlux)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_vertNonLocalFluxTemp', index_vertNonLocalFluxTemp)
+
+      !
+      ! set pointers for GOTM viscosity/diffusivity, TKE, rate of dissipation and turbulent length scale
+      ! (current and new state)
+      !
+      call mpas_pool_get_array(statePool, 'gotmVertViscTopOfCell', gotmVertViscTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmVertViscTopOfCell', gotmVertViscTopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmVertDiffTopOfCell', gotmVertDiffTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmVertDiffTopOfCell', gotmVertDiffTopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmTKETopOfCell', gotmTKETopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmTKETopOfCell', gotmTKETopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmDissTopOfCell', gotmDissTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmDissTopOfCell', gotmDissTopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmLengthTopOfCell', gotmLengthTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmLengthTopOfCell', gotmLengthTopOfCellNew, 2)
 
       nCells = nCellsArray( size(nCellsArray) )
 
@@ -258,45 +244,118 @@ contains
       end do
       !$omp end do
 
+      ! initialize GOTM arrays at the first step
+      ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
+      if (first) then
+         !$omp do schedule(runtime)
+         do iCell = 1, nCells
+            do k = 1, nVertLevelsP1
+               ki = nVertLevelsP1 - k
+               gotmVertViscTopOfCellCur(k, iCell) = gotm_vertVisc(ki)
+               gotmVertDiffTopOfCellCur(k, iCell) = gotm_vertDiffT(ki)
+               gotmTKETopOfCellCur(k, iCell) = gotm_TKE(ki)
+               gotmDissTopOfCellCur(k, iCell) = gotm_eps(ki)
+               gotmLengthTopOfCellCur(k, iCell) = gotm_L(ki)
+               gotmVertViscTopOfCellNew(k, iCell) = gotm_vertVisc(ki)
+               gotmVertDiffTopOfCellNew(k, iCell) = gotm_vertDiffT(ki)
+               gotmTKETopOfCellNew(k, iCell) = gotm_TKE(ki)
+               gotmDissTopOfCellNew(k, iCell) = gotm_eps(ki)
+               gotmLengthTopOfCellNew(k, iCell) = gotm_L(ki)
+            end do
+         end do
+         !$omp end do
+         first = .false.
+      end if
+
       nCells = nCellsArray( 3 )
 
-
-      allocate(OBLDepths(nVertLevels))
-      allocate(interfaceForcings(nVertLevels))
-
-      allocate(Nsqr_iface(nVertLevels+1))
-      allocate(turbulentScalarVelocityScale(nVertLevels))
-      allocate(RiSmoothed(nVertLevels+1))
-      allocate(BVFSmoothed(nVertLevels+1))
-      allocate(RiTemp(nVertLevels+1))
-
-      allocate(normalVelocitySum(nVertLevels))
-      allocate(potentialDensitySum(nVertLevels))
-      allocate(surfaceAverageIndex(nVertLevels))
-      allocate(deltaVelocitySquared(nVertLevels))
-
-      do k = 1, nVertLevels
-         Nsqr_iface(k) = 0.0_RKIND
-         turbulentScalarVelocityScale(k) = 0.0_RKIND
-      end do
-      Nsqr_iface(nVertLevelsP1) = 0.0_RKIND
+      ! allocate squared shear and buoyancy frequencies
+      allocate(shearSquaredTop(nVertLevelsP1))
+      allocate(NSquaredTop(nVertLevelsP1))
 
       call mpas_timer_start('gotm cell loop', .false.)
-      ! TODO: do_turbulence here <20200511, Qing Li> !
+
+      !$omp do schedule(runtime)
+      do iCell = 1, nCells
+
+         ! compute shear frequency squared and buoyancy frequency squared
+         ! TODO: use KE conserving shear following Burchard et al., 2002? <20200514, Qing Li> !
+         shearSquaredTop = 0.0_RKIND
+         NSquaredTop = 0.0_RKIND
+         invAreaCell = 1.0_RKIND / areaCell(iCell)
+         do k=2,maxLevelCell(iCell)
+            do i = 1, nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i, iCell)
+               factor = 0.5_RKIND * dcEdge(iEdge) * dvEdge(iEdge) * invAreaCell
+               delU2 = (normalVelocity(k-1,iEdge) - normalVelocity(k,iEdge))**2
+               shearSquaredTop(k) = shearSquaredTop(k) + factor * delU2
+            enddo
+            shearSquaredTop(k) = shearSquaredTop(k) / (zMid(k-1,iCell) - zMid(k,iCell))**2
+            NSquaredTop(k) = BruntVaisalaFreqTop(k,iCell)
+         end do
+
+         ! fill GOTM arrays with current values at iCell
+         do k = 0, maxLevelCell(iCell)
+            ki = maxLevelCell(iCell) - k + 1
+            gotm_vertVisc(k) = gotmVertViscTopOfCellCur(ki, iCell)
+            gotm_vertDiffT(k) = gotmVertDiffTopOfCellCur(ki, iCell)
+            gotm_vertDiffS(k) = gotmVertDiffTopOfCellCur(ki, iCell)
+            gotm_TKE(k) = gotmTKETopOfCellCur(ki, iCell)
+            gotm_eps(k) = gotmDissTopOfCellCur(ki, iCell)
+            gotm_L(k) = gotmLengthTopOfCellCur(ki, iCell)
+         end do
+
+         !
+         ! interface with do_turbulence():
+         !
+         !   subroutine do_turbulence(nlev,dt,depth,u_taus,u_taub,z0s,z0b,h,NN,SS,xP)
+         !
+         !   nlev          : number of vertical layers
+         !   dt            : time step (s)
+         !   depth         : water depth (m)
+         !   u_taus        : surface friction velocity (m/s)
+         !   u_taub        : bottom friction velocity (m/s)
+         !   z0s           : surface roughness length (m)
+         !   z0b           : bottom roughness length (m)
+         !   h             : layer thickness (m)
+         !   NN            : bouyancy frequency squared (1/s^2)
+         !   SS            : shear-frequency squared (1/s^2)
+         !   xP (optional) : extra TKE production due to, e.g., seagrass (m^2/s^3)
+         !
+         call do_turbulence(maxLevelCell(iCell),                                 &
+                            dt,                                                  &
+                            bottomDepth(iCell),                                  &
+                            surfaceFrictionVelocity(iCell),                      &
+                            0.0_RKIND,                                           &
+                            0.02_RKIND,                                          &
+                            0.0015_RKIND,                                        &
+                            layerThickness(maxLevelCell(iCell):1:-1,iCell),      &
+                            NSquaredTop(maxLevelCell(iCell)+1:1:-1),             &
+                            shearSquaredTop(maxLevelCell(iCell)+1:1:-1))
+         ! TODO: use zero bottom friction and predefined surface/bottom roughness length for testing (may be a lower estimate) <20200512, Qing Li> !
+         ! TODO: use MPAS-O dt for testing, though subcycling is possible <20200512, Qing Li> !
+
+         ! update GOTM arrays for next time step
+         ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
+         do k = 1, maxLevelCell(iCell)
+            ki = maxLevelCell(iCell) - k + 1
+            gotmVertViscTopOfCellNew(k, iCell) = gotm_vertVisc(ki)
+            gotmVertDiffTopOfCellNew(k, iCell) = gotm_vertDiffT(ki)
+            gotmTKETopOfCellNew(k, iCell) = gotm_TKE(ki)
+            gotmDissTopOfCellNew(k, iCell) = gotm_eps(ki)
+            gotmLengthTopOfCellNew(k, iCell) = gotm_L(ki)
+            ! update viscosity/diffusivity
+            vertViscTopOfCell(k, iCell) = gotm_vertVisc(ki)
+            vertDiffTopOfCell(k, iCell) = gotm_vertDiffT(ki)
+         end do
+
+      end do
+      !$omp end do
+
       call mpas_timer_stop('gotm cell loop')
 
-      deallocate(Nsqr_iface)
-      deallocate(turbulentScalarVelocityScale)
-      deallocate(RiSmoothed)
-      deallocate(RiTemp)
-      deallocate(BVFSmoothed)
-      deallocate(normalVelocitySum)
-      deallocate(potentialDensitySum)
-      deallocate(surfaceAverageIndex)
-      deallocate(deltaVelocitySquared)
-
-      deallocate(OBLDepths)
-      deallocate(interfaceForcings)
+      deallocate(shearSquaredTop)
+      deallocate(NSquaredTop)
 
    !--------------------------------------------------------------------
 
