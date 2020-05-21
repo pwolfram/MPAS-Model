@@ -27,7 +27,8 @@ module ocn_vmix_gotm
    use turbulence, only: init_turbulence, do_turbulence
    use turbulence, only: gotm_vertVisc=>num, gotm_vertDiffT=>nuh, &
                          gotm_vertDiffS=>nus, gotm_TKE=>tke,      &
-                         gotm_eps=>eps, gotm_L=>L
+                         gotm_eps=>eps, gotm_L=>L,                &
+                         gotm_kb=>kb, gotm_epsb=>epsb
    use mtridiagonal, only: init_tridiagonal
 
    implicit none
@@ -136,8 +137,10 @@ contains
         BruntVaisalaFreqTop, normalVelocity, zMid, &
         gotmVertViscTopOfCellCur, gotmVertDiffTopOfCellCur, &
         gotmTKETopOfCellCur, gotmDissTopOfCellCur, gotmLengthTopOfCellCur, &
+        gotmKbTopOfCellCur, gotmEpsbTopOfCellCur, &
         gotmVertViscTopOfCellNew, gotmVertDiffTopOfCellNew, &
-        gotmTKETopOfCellNew, gotmDissTopOfCellNew, gotmLengthTopOfCellNew
+        gotmTKETopOfCellNew, gotmDissTopOfCellNew, gotmLengthTopOfCellNew, &
+        gotmKbTopOfCellNew, gotmEpsbTopOfCellNew
 
       integer :: i, iCell, iEdge, k, ki, timeLevel, nCells
 
@@ -226,6 +229,10 @@ contains
       call mpas_pool_get_array(statePool, 'gotmDissTopOfCell', gotmDissTopOfCellNew, 2)
       call mpas_pool_get_array(statePool, 'gotmLengthTopOfCell', gotmLengthTopOfCellCur, 1)
       call mpas_pool_get_array(statePool, 'gotmLengthTopOfCell', gotmLengthTopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmKbTopOfCell', gotmKbTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmKbTopOfCell', gotmKbTopOfCellNew, 2)
+      call mpas_pool_get_array(statePool, 'gotmEpsbTopOfCell', gotmEpsbTopOfCellCur, 1)
+      call mpas_pool_get_array(statePool, 'gotmEpsbTopOfCell', gotmEpsbTopOfCellNew, 2)
 
       nCells = nCellsArray( size(nCellsArray) )
 
@@ -248,11 +255,14 @@ contains
                gotmTKETopOfCellCur(k, iCell) = gotm_TKE(ki)
                gotmDissTopOfCellCur(k, iCell) = gotm_eps(ki)
                gotmLengthTopOfCellCur(k, iCell) = gotm_L(ki)
+               gotmKbTopOfCellCur(k, iCell) = gotm_kb(ki)
+               gotmEpsbTopOfCellCur(k, iCell) = gotm_epsb(ki)
                gotmVertViscTopOfCellNew(k, iCell) = gotm_vertVisc(ki)
                gotmVertDiffTopOfCellNew(k, iCell) = gotm_vertDiffT(ki)
-               gotmTKETopOfCellNew(k, iCell) = gotm_TKE(ki)
                gotmDissTopOfCellNew(k, iCell) = gotm_eps(ki)
                gotmLengthTopOfCellNew(k, iCell) = gotm_L(ki)
+               gotmKbTopOfCellNew(k, iCell) = gotm_kb(ki)
+               gotmEpsbTopOfCellNew(k, iCell) = gotm_epsb(ki)
             end do
          end do
          !$omp end do
@@ -310,6 +320,8 @@ contains
             gotm_TKE(k) = gotmTKETopOfCellCur(ki, iCell)
             gotm_eps(k) = gotmDissTopOfCellCur(ki, iCell)
             gotm_L(k) = gotmLengthTopOfCellCur(ki, iCell)
+            gotm_kb(k) = gotmKbTopOfCellCur(ki, iCell)
+            gotm_epsb(k) = gotmEpsbTopOfCellCur(ki, iCell)
          end do
 
          !
@@ -353,6 +365,8 @@ contains
             gotmTKETopOfCellNew(k, iCell) = gotm_TKE(ki)
             gotmDissTopOfCellNew(k, iCell) = gotm_eps(ki)
             gotmLengthTopOfCellNew(k, iCell) = gotm_L(ki)
+            gotmKbTopOfCellNew(k, iCell) = gotm_kb(ki)
+            gotmEpsbTopOfCellNew(k, iCell) = gotm_epsb(ki)
             ! update viscosity/diffusivity
             vertViscTopOfCell(k, iCell) = gotm_vertVisc(ki)
             vertDiffTopOfCell(k, iCell) = gotm_vertDiffT(ki)

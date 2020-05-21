@@ -2135,6 +2135,14 @@
 			 description="GOTM: turbulent kenetic energy defined at the cell center (horizontally) and top (vertically)"
 			 packages="forwardMode;analysisMode"
 		/>
+		<var name="gotmKbTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-4}"
+			 description="GOTM: (half) buoyancy variance defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="gotmEpsbTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-5}"
+			 description="GOTM: destruction of buoyancy variance defined at the cell center (horizontally) and top (vertically)"
+			 packages="forwardMode;analysisMode"
+		/>
 		<var name="gotmDissTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-3}"
 			 description="GOTM: rate of dissipation defined at the cell center (horizontally) and top (vertically)"
 			 packages="forwardMode;analysisMode"
