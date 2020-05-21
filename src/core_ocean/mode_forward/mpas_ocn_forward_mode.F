@@ -730,11 +730,15 @@ module ocn_forward_mode
 
       integer :: ierr
 
+      logical, pointer :: config_use_gotm
+
       call mpas_dmpar_exch_group_destroy_reusable_buffers(domain, 'subcycleFields')
 
       call ocn_analysis_finalize(domain, ierr)
 
-      call clean_turbulence()
+      call mpas_pool_get_config(domain % configs, 'config_use_gotm', config_use_gotm)
+
+      if (config_use_gotm) call clean_turbulence()
 
       call mpas_destroy_clock(domain % clock, ierr)
 
