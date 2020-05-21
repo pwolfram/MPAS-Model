@@ -24,7 +24,7 @@ module ocn_vmix_gotm
    ! TODO: read in GOTM namelist for testing <20200512, Qing Li> !
    use mpas_io_units
 
-   use turbulence, only: init_turbulence, do_turbulence
+   use turbulence, only: init_turbulence, do_turbulence, clean_turbulence
    use turbulence, only: gotm_vertVisc=>num, gotm_vertDiffT=>nuh, &
                          gotm_vertDiffS=>nus, gotm_TKE=>tke,      &
                          gotm_eps=>eps, gotm_L=>L,                &
@@ -48,7 +48,8 @@ module ocn_vmix_gotm
    !--------------------------------------------------------------------
 
    public :: ocn_vmix_coefs_gotm_build, &
-             ocn_vmix_gotm_init
+             ocn_vmix_gotm_init,        &
+             ocn_vmix_gotm_finalize
 
    !--------------------------------------------------------------------
    !
@@ -65,7 +66,7 @@ contains
 
 !***********************************************************************
 !
-!  routine ocn_vmix_coefs_cmvix_build
+!  routine ocn_vmix_coefs_gotm_build
 !
 !> \brief   Computes mixing coefficients using GOTM
 !> \author  Qing Li
@@ -175,7 +176,6 @@ contains
       !
       ! set parameters
       !
-      ! call mpas_pool_get_config(ocnConfigs, 'config_cvmix_background_viscosity', config_cvmix_background_viscosity)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nVertLevelsP1', nVertLevelsP1)
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
@@ -403,12 +403,6 @@ contains
 
    !--------------------------------------------------------------------
 
-      !-----------------------------------------------------------------
-      !
-      ! call individual init routines for each parameterization
-      !
-      !-----------------------------------------------------------------
-
       implicit none
 
       type (domain_type), intent(inout) :: domain !< Input/Output: domain information
@@ -461,6 +455,47 @@ contains
    !--------------------------------------------------------------------
 
    end subroutine ocn_vmix_gotm_init!}}}
+
+!***********************************************************************
+!
+!  routine ocn_vmix_gotm_finalize
+!
+!> \brief   Finalizes ocean vertical mixing quantities in GOTM
+!> \author  Qing Li
+!> \date    11 May 2020
+!> \details
+!>  This routine deallocates all memory allocated in GOTM
+!
+!-----------------------------------------------------------------------
+
+
+   subroutine ocn_vmix_gotm_finalize(domain,err)!{{{
+
+   !--------------------------------------------------------------------
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain !< Input/Output: domain information
+
+      integer, intent(out) :: err !< Output: error flag
+
+      !
+      ! assume no errors during initialization and set to 1 when error is encountered
+      !
+      err=0
+
+      !
+      ! only finalize if GOTM is turned on
+      !
+      if (.not. gotmOn) return
+
+      ! deallocate all memory allocated in GOTM
+      call clean_turbulence()
+
+   !--------------------------------------------------------------------
+
+   end subroutine ocn_vmix_gotm_finalize!}}}
+
 
 !***********************************************************************
 
