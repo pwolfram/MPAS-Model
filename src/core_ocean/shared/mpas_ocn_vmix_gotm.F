@@ -308,7 +308,7 @@ contains
          enddo
 
          ! fill the bottom values -- GOTM requires size of nlev+1 for both arrays
-         NSquaredTop(maxLevelCell(iCell)+1) = NSquaredTop(maxLevelCell(iCell))
+         NSquaredTop(maxLevelCell(iCell)+1) = 0.0_RKIND
          hLayer(maxLevelCell(iCell)+1) = hLayer(maxLevelCell(iCell))
 
          ! fill GOTM arrays with current values at iCell
@@ -358,7 +358,7 @@ contains
 
          ! update GOTM arrays for next time step
          ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
-         do k = 1, maxLevelCell(iCell)
+         do k = 1, maxLevelCell(iCell)+1
             ki = maxLevelCell(iCell) - k + 1
             gotmVertViscTopOfCellNew(k, iCell) = gotm_vertVisc(ki)
             gotmVertDiffTopOfCellNew(k, iCell) = gotm_vertDiffT(ki)
