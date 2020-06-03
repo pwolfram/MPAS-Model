@@ -2,6 +2,7 @@
 # build_options.mk stuff handled here
 list(APPEND CPPDEFS "-DCORE_OCEAN")
 list(APPEND INCLUDES "${CMAKE_BINARY_DIR}/core_ocean/shared") # Only need this for '#include "../inc/core_variables.inc"' to work
+list(APPEND INCLUDES "${CMAKE_BINARY_DIR}/core_ocean/gotm/include")
 
 # driver (files live in E3SM)
 list(APPEND RAW_SOURCES
@@ -72,6 +73,7 @@ list(APPEND RAW_SOURCES
   core_ocean/shared/mpas_ocn_vmix_coefs_tanh.F
   core_ocean/shared/mpas_ocn_vmix_coefs_redi.F
   core_ocean/shared/mpas_ocn_vmix_cvmix.F
+  core_ocean/shared/mpas_ocn_vmix_gotm.F
   core_ocean/shared/mpas_ocn_tendency.F
   core_ocean/shared/mpas_ocn_tracer_hmix.F
   core_ocean/shared/mpas_ocn_tracer_hmix_del2.F
@@ -150,39 +152,51 @@ set(BGC_FILES
 )
 
 # Add GOTM
-if (NOT EXISTS core_ocean/GOTM/.git)
-  message(FATAL "Missing core_ocean/GOTM/.git, did you forget to 'git submodule update --init --recursive' ?")
+if (NOT EXISTS core_ocean/gotm/.git)
+  message(FATAL "Missing core_ocean/gotm/.git, did you forget to 'git submodule update --init --recursive' ?")
 endif()
 set(GOTM_FILES
-  core_ocean/GOTM/src/turbulence/algebraiclength.F90
-  core_ocean/GOTM/src/turbulence/alpha_mnb.F90
-  core_ocean/GOTM/src/turbulence/cmue_a.F90
-  core_ocean/GOTM/src/turbulence/cmue_b.F90
-  core_ocean/GOTM/src/turbulence/cmue_c.F90
-  core_ocean/GOTM/src/turbulence/cmue_d.F90
-  core_ocean/GOTM/src/turbulence/cmue_ma.F90
-  core_ocean/GOTM/src/turbulence/cmue_rf.F90
-  core_ocean/GOTM/src/turbulence/cmue_sg.F90
-  core_ocean/GOTM/src/turbulence/compute_cpsi3.F90
-  core_ocean/GOTM/src/turbulence/compute_rist.F90
-  core_ocean/GOTM/src/turbulence/dissipationeq.F90
-  core_ocean/GOTM/src/turbulence/epsbalgebraic.F90
-  core_ocean/GOTM/src/turbulence/fk_craig.F90
-  core_ocean/GOTM/src/turbulence/genericeq.F90
-  core_ocean/GOTM/src/turbulence/gotm_lib_version.F90
-  core_ocean/GOTM/src/turbulence/internal_wave.F90
-  core_ocean/GOTM/src/turbulence/ispralength.F90
-  core_ocean/GOTM/src/turbulence/kbalgebraic.F90
-  core_ocean/GOTM/src/turbulence/kbeq.F90
-  core_ocean/GOTM/src/turbulence/lengthscaleeq.F90
-  core_ocean/GOTM/src/turbulence/potentialml.F90
-  core_ocean/GOTM/src/turbulence/production.F90
-  core_ocean/GOTM/src/turbulence/q2over2eq.F90
-  core_ocean/GOTM/src/turbulence/r_ratio.F90
-  core_ocean/GOTM/src/turbulence/tkealgebraic.F90
-  core_ocean/GOTM/src/turbulence/tkeeq.F90
-  core_ocean/GOTM/src/turbulence/turbulence.F90
-  core_ocean/GOTM/src/turbulence/variances.F90
+  core_ocean/gotm/src/util/adv_center.F90
+  core_ocean/gotm/src/util/convert_fluxes.F90
+  core_ocean/gotm/src/util/diff_center.F90
+  core_ocean/gotm/src/util/diff_face.F90
+  core_ocean/gotm/src/util/eqstate.F90
+  core_ocean/gotm/src/util/gridinterpol.F90
+  core_ocean/gotm/src/util/lagrange.F90
+  core_ocean/gotm/src/util/ode_solvers.F90
+  core_ocean/gotm/src/util/time.F90
+  core_ocean/gotm/src/util/tridiagonal.F90
+  core_ocean/gotm/src/util/util.F90
+  core_ocean/gotm/src/util/field_manager.F90
+  core_ocean/gotm/src/turbulence/algebraiclength.F90
+  core_ocean/gotm/src/turbulence/alpha_mnb.F90
+  core_ocean/gotm/src/turbulence/cmue_a.F90
+  core_ocean/gotm/src/turbulence/cmue_b.F90
+  core_ocean/gotm/src/turbulence/cmue_c.F90
+  core_ocean/gotm/src/turbulence/cmue_d.F90
+  core_ocean/gotm/src/turbulence/cmue_ma.F90
+  core_ocean/gotm/src/turbulence/cmue_rf.F90
+  core_ocean/gotm/src/turbulence/cmue_sg.F90
+  core_ocean/gotm/src/turbulence/compute_cpsi3.F90
+  core_ocean/gotm/src/turbulence/compute_rist.F90
+  core_ocean/gotm/src/turbulence/dissipationeq.F90
+  core_ocean/gotm/src/turbulence/epsbalgebraic.F90
+  core_ocean/gotm/src/turbulence/fk_craig.F90
+  core_ocean/gotm/src/turbulence/genericeq.F90
+  core_ocean/gotm/src/turbulence/gotm_lib_version.F90
+  core_ocean/gotm/src/turbulence/internal_wave.F90
+  core_ocean/gotm/src/turbulence/ispralength.F90
+  core_ocean/gotm/src/turbulence/kbalgebraic.F90
+  core_ocean/gotm/src/turbulence/kbeq.F90
+  core_ocean/gotm/src/turbulence/lengthscaleeq.F90
+  core_ocean/gotm/src/turbulence/potentialml.F90
+  core_ocean/gotm/src/turbulence/production.F90
+  core_ocean/gotm/src/turbulence/q2over2eq.F90
+  core_ocean/gotm/src/turbulence/r_ratio.F90
+  core_ocean/gotm/src/turbulence/tkealgebraic.F90
+  core_ocean/gotm/src/turbulence/tkeeq.F90
+  core_ocean/gotm/src/turbulence/turbulence.F90
+  core_ocean/gotm/src/turbulence/variances.F90
 )
 
 list(APPEND RAW_SOURCES ${CVMIX_FILES} ${BGC_FILES} ${GOTM_FILES})
